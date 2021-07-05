@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.client.admin;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -46,6 +42,11 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 /**
  * Admin interface for Topics management.
  */
@@ -1370,6 +1371,28 @@ public interface Topics {
      * @return a future that can be used to track when the message is returned
      */
     CompletableFuture<Message<byte[]>> getMessageByIndexAsync(String topic, long index);
+
+    /**
+     * Get message ID published at or just after this absolute timestamp (in ms).
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return MessageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    MessageId getMessageIdByTimestamp(String topic, long timestamp) throws PulsarAdminException;
+
+    /**
+     * Get message ID published at or just after this absolute timestamp (in ms) asynchronously.
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return a future that can be used to track when the message ID is returned.
+     */
+    CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp);
 
     /**
      * Create a new subscription on a topic.
