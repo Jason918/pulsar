@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.protocol;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -92,6 +94,11 @@ public interface ProtocolHandler extends AutoCloseable {
      * @return the list of channel initializers for the ports that this protocol handler listens on.
      */
     Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers();
+
+
+    default List<EmbeddedRpcHandler<?, ?>> getEmbeddedRpcHandlers() {
+        return Collections.emptyList();
+    }
 
     @Override
     void close();

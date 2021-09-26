@@ -22,6 +22,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -80,6 +81,13 @@ class ProtocolHandlerWithClassLoader implements ProtocolHandler {
     public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             return handler.newChannelInitializers();
+        }
+    }
+
+    @Override
+    public List<EmbeddedRpcHandler<?, ?>> getEmbeddedRpcHandlers() {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.getEmbeddedRpcHandlers();
         }
     }
 

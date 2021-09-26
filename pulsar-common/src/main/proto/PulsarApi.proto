@@ -858,6 +858,18 @@ message CommandEndTxnOnSubscriptionResponse {
     optional string message = 5;
 }
 
+message CommandEmbeddedRpcRequest {
+    required uint64 request_id = 1;
+    required uint64 code = 2;
+    optional string topic = 3;
+    optional string subscription = 4;
+}
+
+message CommandEmbeddedRpcResponse {
+    required uint64 request_id = 1;
+    required uint64 response_code = 2;
+}
+
 message BaseCommand {
     enum Type {
         CONNECT     = 2;
@@ -941,6 +953,8 @@ message BaseCommand {
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
 
+        EMBEDDED_RPC_REQUEST = 10001;
+        EMBEDDED_RPC_RESPONSE = 10002;
     }
 
 
@@ -1015,4 +1029,8 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+
+    optional CommandEmbeddedRpcRequest embeddedRpcRequest = 10001;
+    optional CommandEmbeddedRpcResponse embeddedRpcResponse = 10002;
+
 }

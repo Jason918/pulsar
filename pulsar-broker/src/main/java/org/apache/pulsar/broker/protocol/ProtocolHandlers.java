@@ -25,10 +25,13 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 
@@ -128,14 +131,34 @@ public class ProtocolHandlers implements AutoCloseable {
                         + " But it is already occupied by other message protocols.",
                         handler.getKey(), address);
                     throw new RuntimeException("Protocol handler for `" + handler.getKey()
-                        + "` attempts to use " + address + " for its listening port. But it is"
-                        + " already occupied by other messaging protocols");
+                            + "` attempts to use " + address + " for its listening port. But it is"
+                            + " already occupied by other messaging protocols");
                 }
                 channelInitializers.put(handler.getKey(), initializers);
             });
         }
 
         return channelInitializers;
+    }
+
+    public Map<Long, EmbeddedRpcHandler<?, ?>> getEmbeddedRpcHandlers() {
+        Map<Long, EmbeddedRpcHandler<?, ?>> result = new HashMap<>();
+        handlers.forEach((protocolName, protocolHandlerWithClassLoader) -> {
+            List<EmbeddedRpcHandler<?, ?>> rpcHandlers = protocolHandlerWithClassLoader.getEmbeddedRpcHandlers();
+            if (CollectionUtils.isEmpty(rpcHandlers)) {
+                return;
+            }
+            for (EmbeddedRpcHandler<?, ?> rpcHandler : rpcHandlers) {
+                EmbeddedRpcHandler<?, ?> old = result.put(rpcHandler.getCode(), rpcHandler);
+                if (old != null) {
+                    String errMsg = String.format("ProtocolRpcHandler.code(%d) in %s of %s conflict with %s",
+                            rpcHandler.getCode(), rpcHandler.getName(), protocolName, old.getName());
+                    log.error(errMsg);
+                    throw new RuntimeException(errMsg);
+                }
+            }
+        });
+        return result;
     }
 
     public void start(BrokerService service) {

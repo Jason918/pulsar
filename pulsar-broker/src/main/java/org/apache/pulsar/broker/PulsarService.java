@@ -96,6 +96,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.protocol.EmbeddedRpcHandler;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -264,6 +265,8 @@ public class PulsarService implements AutoCloseable {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ScheduledExecutorService transactionReplayExecutor;
+    private Map<Long, EmbeddedRpcHandler<?, ?>> embeddedRpcHandlers;
+
 
     public enum State {
         Init, Started, Closing, Closed
@@ -753,6 +756,7 @@ public class PulsarService implements AutoCloseable {
             Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
                 this.protocolHandlers.newChannelInitializers();
             this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
+            embeddedRpcHandlers = this.protocolHandlers.getEmbeddedRpcHandlers();
 
             acquireSLANamespace();
 

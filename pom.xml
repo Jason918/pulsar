@@ -24,9 +24,9 @@
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
   <parent>
-    <groupId>org.apache</groupId>
-    <artifactId>apache</artifactId>
-    <version>23</version>
+    <groupId>com.xiaoju</groupId>
+    <artifactId>base-pom</artifactId>
+    <version>0.0.1</version>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
@@ -1994,6 +1994,58 @@ flexible messaging model and an intuitive client API.</description>
       </modules>
     </profile>
 
+    <!-- dop-modules profile focused of pulsar java modules used by DOP -->
+    <profile>
+      <id>dop</id>
+      <properties>
+        <skipSourceReleaseAssembly>true</skipSourceReleaseAssembly>
+      </properties>
+      <modules>
+        <module>buildtools</module>
+        <module>testmocks</module>
+        <module>managed-ledger</module>
+        <module>pulsar-common</module>
+        <module>pulsar-broker-common</module>
+        <module>pulsar-broker</module>
+        <module>pulsar-client-api</module>
+        <module>pulsar-client</module>
+        <module>pulsar-client-admin-api</module>
+        <module>pulsar-client-admin</module>
+        <module>pulsar-client-tools</module>
+        <module>pulsar-client-tools-test</module>
+        <module>pulsar-websocket</module>
+        <module>pulsar-proxy</module>
+        <module>pulsar-discovery-service</module>
+        <module>pulsar-zookeeper-utils</module>
+        <module>pulsar-testclient</module>
+        <module>pulsar-broker-auth-sasl</module>
+        <module>pulsar-client-auth-sasl</module>
+        <module>pulsar-config-validation</module>
+
+        <!-- transaction related modules -->
+        <module>pulsar-transaction</module>
+
+        <!-- functions-related modules -->
+<!--        <module>pulsar-functions</module>-->
+
+        <!-- connector-related modules -->
+<!--        <module>pulsar-io</module>-->
+
+        <!-- Bouncy Castle Provider loaders-->
+        <module>bouncy-castle</module>
+
+        <module>pulsar-client-messagecrypto-bc</module>
+
+        <!-- all these modules should be put at the end in this exact sequence -->
+        <module>distribution</module>
+        <module>pulsar-metadata</module>
+
+        <!-- package management releated modules (begin) -->
+        <module>pulsar-package-management</module>
+        <!-- package management releated modules (end) -->
+      </modules>
+    </profile>
+
     <!--
          Configure Google Error Prone static code analyser, http://errorprone.info
 
@@ -2209,23 +2261,5 @@ flexible messaging model and an intuitive client API.</description>
       </reporting>
     </profile>
   </profiles>
-
-  <repositories>
-    <repository>
-      <id>central</id>
-      <layout>default</layout>
-      <url>https://repo1.maven.org/maven2</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>confluent</id>
-      <url>https://packages.confluent.io/maven/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
 
 </project>

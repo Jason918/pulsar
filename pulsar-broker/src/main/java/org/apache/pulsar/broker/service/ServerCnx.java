@@ -69,6 +69,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.protocol.EmbeddedRpcHandler;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -95,6 +96,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConsumerStats;
+import org.apache.pulsar.common.api.proto.CommandEmbeddedRpcRequest;
 import org.apache.pulsar.common.api.proto.CommandEndTxn;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscription;
@@ -154,6 +156,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final SchemaRegistryService schemaService;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
+    private final Map<Long, EmbeddedRpcHandler<?, ?>> protocolRpcHandlers;
     private State state;
     private volatile boolean isActive = true;
     String authRole = null;
@@ -226,6 +229,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.schemaService = pulsar.getSchemaRegistryService();
         this.state = State.Start;
         ServiceConfiguration conf = pulsar.getConfiguration();
+        this.protocolRpcHandlers = pulsar.getEmbeddedRpcHandlers();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
         this.producers = new ConcurrentLongHashMap<>(8, 1);
@@ -2203,6 +2207,36 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ex.getMessage()));
                     }
                 }));
+    }
+
+
+    @Override
+    protected void handleEmbeddedRpcRequest(CommandEmbeddedRpcRequest embeddedRpcRequest, ByteBuf buffer) {
+        long requestId = embeddedRpcRequest.getRequestId();
+        long requestCode = embeddedRpcRequest.getCode();
+        String topic = embeddedRpcRequest.getTopic();
+        String subscription = embeddedRpcRequest.getSubscription();
+        EmbeddedRpcHandler<?, ?> handler = this.protocolRpcHandlers.get(requestCode);
+        if (handler == null) {
+            String errMsg =
+                    String.format("ProtocolRpcRequest, missing handler for request code %d, topic=%s, subscription=%s",
+                            requestCode, topic, subscription);
+            log.error(errMsg);
+            commandSender.sendErrorResponse(requestId, ServerError.UnknownError, errMsg);
+            return;
+        }
+
+        handler.handle(embeddedRpcRequest, buffer).thenAccept(responseByteBufPair -> {
+            ctx.writeAndFlush(Commands.newEmbeddedRpcResponse(responseByteBufPair.getLeft(),
+                    responseByteBufPair.getRight()));
+        }).exceptionally(throwable -> {
+            String errMsg =
+                    String.format("ProtocolRpcRequest, missing handler for request code %d, topic=%s, subscription=%s",
+                            requestCode, topic, subscription);
+            log.error(errMsg);
+            commandSender.sendErrorResponse(requestId, ServerError.UnknownError, errMsg);
+            return null;
+        });
     }
 
     @Override

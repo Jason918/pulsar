@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.netty.buffer.ByteBuf;
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -697,4 +698,6 @@ public interface Consumer<T> extends Closeable {
      * @return The last disconnected timestamp of the consumer
      */
     long getLastDisconnectedTimestamp();
+
+    CompletableFuture<EmbeddedRpcResponse> embeddedRpcAsync(long code, ByteBuf requestPayload);
 }

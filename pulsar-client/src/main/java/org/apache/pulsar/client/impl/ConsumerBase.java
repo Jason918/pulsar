@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Queues;
+import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -38,9 +39,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.ws.rs.NotSupportedException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.EmbeddedRpcResponse;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
@@ -605,6 +608,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public abstract CompletableFuture<Void> closeAsync();
 
+
+    @Override
+    public CompletableFuture<EmbeddedRpcResponse> embeddedRpcAsync(long code, ByteBuf requestPayload) {
+        throw new NotSupportedException();
+    }
 
     @Override
     public MessageId getLastMessageId() throws PulsarClientException {

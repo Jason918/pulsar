@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -48,7 +47,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -58,11 +56,11 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.EmbeddedRpcResponse;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
@@ -97,6 +95,7 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -2370,6 +2369,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public Map<MessageIdImpl, List<MessageImpl<T>>> getPossibleSendToDeadLetterTopicMessages() {
         return possibleSendToDeadLetterTopicMessages;
+    }
+
+    @Override
+    public CompletableFuture<EmbeddedRpcResponse> embeddedRpcAsync(long code, ByteBuf requestPayload) {
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException(
+                    String.format("The consumer %s of %s was already closed when calling embeddedRpc to topic %s",
+                            consumerName, subscription, topicName)));
+        }
+        if (!isConnected()) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException(
+                    String.format(
+                            "The client %s of %s is not connected to the broker when calling embeddedRpc to topic %s",
+                            consumerName, subscription, topicName)));
+        }
+        long requestId = client.newRequestId();
+        ByteBufPair embeddedRpcRequest =
+                Commands.newEmbeddedRpcRequest(requestId, topic, subscription, code, requestPayload);
+
+        return cnx().sendEmbeddedRpcRequestWithRequestId(embeddedRpcRequest, requestId);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

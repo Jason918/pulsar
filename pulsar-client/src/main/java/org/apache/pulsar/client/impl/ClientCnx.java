@@ -52,12 +52,13 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.EmbeddedRpcResponse;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.tls.TlsHostnameVerifier;
+import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
@@ -69,6 +70,7 @@ import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEmbeddedRpcResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
@@ -87,11 +89,12 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
@@ -173,7 +176,8 @@ public class ClientCnx extends PulsarHandler {
         GetSchema,
         GetOrCreateSchema,
         AckResponse,
-        Lookup;
+        Lookup,
+        EmbeddedRpc;
 
         String getDescription() {
             if (this == Command) {
@@ -694,6 +698,17 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
+    protected void handleEmbeddedRpcResponse(CommandEmbeddedRpcResponse embeddedRpcResponse, ByteBuf buffer) {
+        long requestId = embeddedRpcResponse.getRequestId();
+        CompletableFuture<EmbeddedRpcResponse> requestFuture =
+                (CompletableFuture<EmbeddedRpcResponse>) pendingRequests.remove(requestId);
+        EmbeddedRpcResponseImpl response = new EmbeddedRpcResponseImpl();
+        response.setResponseCode(embeddedRpcResponse.getResponseCode());
+        response.setPayload(buffer);
+        requestFuture.complete(response);
+    }
+
+    @Override
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
         log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
@@ -839,13 +854,33 @@ public class ClientCnx extends PulsarHandler {
         return connectionFuture;
     }
 
+    public CompletableFuture<EmbeddedRpcResponse> sendEmbeddedRpcRequestWithRequestId(ByteBufPair embeddedRpcRequest,
+                                                                                      long requestId) {
+        TimedCompletableFuture<EmbeddedRpcResponse> future = new TimedCompletableFuture<>();
+        RequestType requestType = RequestType.EmbeddedRpc;
+        pendingRequests.put(requestId, future);
+
+        ctx.writeAndFlush(embeddedRpcRequest).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                CompletableFuture<?> newFuture = pendingRequests.remove(requestId);
+                if (newFuture != null && !newFuture.isDone()) {
+                    log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
+                            requestType.getDescription(), writeFuture.cause().getMessage());
+                    future.completeExceptionally(writeFuture.cause());
+                }
+            }
+        });
+        requestTimeoutQueue.add(new RequestTime(requestId, requestType));
+        return future;
+    }
+
     CompletableFuture<ProducerResponse> sendRequestWithId(ByteBuf cmd, long requestId) {
         return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true);
     }
 
     private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
-                                                                 RequestType requestType, boolean flush,
-                                                                 TimedCompletableFuture<T> future) {
+                                                 RequestType requestType, boolean flush,
+                                                 TimedCompletableFuture<T> future) {
         pendingRequests.put(requestId, future);
         if (flush) {
             ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {

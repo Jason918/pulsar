@@ -26,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -45,7 +44,6 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
@@ -60,6 +58,7 @@ import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEmbeddedRpcResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
@@ -95,6 +94,7 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -1168,6 +1168,25 @@ public class Commands {
                 .setErrorMessage(errorMessage);
         return serializeWithSize(cmd);
     }
+
+    public static ByteBufPair newEmbeddedRpcResponse(CommandEmbeddedRpcResponse response, ByteBuf buffer) {
+        BaseCommand cmd = localCmd(Type.EMBEDDED_RPC_RESPONSE);
+        cmd.setEmbeddedRpcResponse().copyFrom(response);
+        return serializeCommandMessageWithSize(cmd, buffer);
+    }
+
+
+    public static ByteBufPair newEmbeddedRpcRequest(long requestId, String topic, String subscription,
+                                                    long code, ByteBuf payload) {
+        BaseCommand cmd = localCmd(Type.EMBEDDED_RPC_REQUEST);
+        cmd.setEmbeddedRpcRequest()
+                .setRequestId(requestId)
+                .setCode(code)
+                .setTopic(topic)
+                .setSubscription(subscription);
+        return serializeCommandMessageWithSize(cmd, payload);
+    }
+
 
     // ---- transaction related ----
 

@@ -67,6 +67,8 @@ import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandEmbeddedRpcRequest;
+import org.apache.pulsar.common.api.proto.CommandEmbeddedRpcResponse;
 import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
 import org.apache.pulsar.common.api.proto.CommandSeek;
@@ -420,12 +422,29 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 checkArgument(cmd.hasEndTxnOnSubscriptionResponse());
                 handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
                 break;
+            case EMBEDDED_RPC_REQUEST:
+                checkArgument(cmd.hasEmbeddedRpcRequest());
+                handleEmbeddedRpcRequest(cmd.getEmbeddedRpcRequest(), buffer);
+                break;
+            case EMBEDDED_RPC_RESPONSE:
+                checkArgument(cmd.hasEmbeddedRpcResponse());
+                handleEmbeddedRpcResponse(cmd.getEmbeddedRpcResponse(), buffer);
+                break;
             default:
                 break;
             }
         } finally {
             buffer.release();
         }
+    }
+
+    protected void handleEmbeddedRpcResponse(CommandEmbeddedRpcResponse embeddedRpcResponse, ByteBuf buffer) {
+        throw new UnsupportedOperationException();
+    }
+
+
+    protected void handleEmbeddedRpcRequest(CommandEmbeddedRpcRequest embeddedRpcRequest, ByteBuf buffer) {
+        throw new UnsupportedOperationException();
     }
 
     protected abstract void messageReceived();
