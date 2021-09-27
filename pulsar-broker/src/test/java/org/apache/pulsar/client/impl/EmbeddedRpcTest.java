@@ -54,7 +54,7 @@ public class EmbeddedRpcTest extends BrokerTestBase {
         }
 
         @Override
-        public CompletableFuture<RpcResponse> handleRPCAsync(RpcRequest rpcRequest) {
+        public CompletableFuture<RpcResponse> handleRPCAsync(String topic, String subscription, RpcRequest rpcRequest) {
             log.info("handleRPCAsync, req={}", rpcRequest);
             RpcResponse rsp = new RpcResponse();
             rsp.setCost(rpcRequest.getIndex() / 2);

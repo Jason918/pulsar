@@ -96,7 +96,7 @@ public interface ProtocolHandler extends AutoCloseable {
     Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers();
 
 
-    default List<EmbeddedRpcHandler<?, ?>> getEmbeddedRpcHandlers() {
+    default List<EmbeddedRpcHandler<?, ?>> initEmbeddedRpcHandlers() {
         return Collections.emptyList();
     }
 

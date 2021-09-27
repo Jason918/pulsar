@@ -756,7 +756,7 @@ public class PulsarService implements AutoCloseable {
             Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
                 this.protocolHandlers.newChannelInitializers();
             this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
-            embeddedRpcHandlers = this.protocolHandlers.getEmbeddedRpcHandlers();
+            embeddedRpcHandlers = this.protocolHandlers.initEmbeddedRpcHandlers();
 
             acquireSLANamespace();
 

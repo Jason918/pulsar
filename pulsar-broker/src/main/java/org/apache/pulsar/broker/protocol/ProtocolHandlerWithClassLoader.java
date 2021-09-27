@@ -85,9 +85,9 @@ class ProtocolHandlerWithClassLoader implements ProtocolHandler {
     }
 
     @Override
-    public List<EmbeddedRpcHandler<?, ?>> getEmbeddedRpcHandlers() {
+    public List<EmbeddedRpcHandler<?, ?>> initEmbeddedRpcHandlers() {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            return handler.getEmbeddedRpcHandlers();
+            return handler.initEmbeddedRpcHandlers();
         }
     }
 

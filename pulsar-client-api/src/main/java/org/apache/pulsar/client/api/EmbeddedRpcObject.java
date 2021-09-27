@@ -24,7 +24,15 @@ import io.netty.buffer.ByteBuf;
 
 public interface EmbeddedRpcObject {
 
+    /**
+     * serialize object to ByteBuf
+     * @return
+     */
     ByteBuf getPayload();
 
+    /**
+     * deserialize object from ByteBuf
+     * @param payload
+     */
     void parseFrom(ByteBuf payload);
 }

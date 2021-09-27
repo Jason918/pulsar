@@ -141,10 +141,10 @@ public class ProtocolHandlers implements AutoCloseable {
         return channelInitializers;
     }
 
-    public Map<Long, EmbeddedRpcHandler<?, ?>> getEmbeddedRpcHandlers() {
+    public Map<Long, EmbeddedRpcHandler<?, ?>> initEmbeddedRpcHandlers() {
         Map<Long, EmbeddedRpcHandler<?, ?>> result = new HashMap<>();
         handlers.forEach((protocolName, protocolHandlerWithClassLoader) -> {
-            List<EmbeddedRpcHandler<?, ?>> rpcHandlers = protocolHandlerWithClassLoader.getEmbeddedRpcHandlers();
+            List<EmbeddedRpcHandler<?, ?>> rpcHandlers = protocolHandlerWithClassLoader.initEmbeddedRpcHandlers();
             if (CollectionUtils.isEmpty(rpcHandlers)) {
                 return;
             }
