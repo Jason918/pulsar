@@ -57,6 +57,9 @@ public class ManagedLedgerInternalStats {
      * If the entryid is -1, then the ledger is open, yet no entries are written. */
     public String lastConfirmedEntry;
 
+    /** The last index of the topic.*/
+    public long lastIndex;
+
     /** The state of this ledger for writing.
      * The state LedgerOpened means that a ledger is open for saving published messages. */
     public String state;

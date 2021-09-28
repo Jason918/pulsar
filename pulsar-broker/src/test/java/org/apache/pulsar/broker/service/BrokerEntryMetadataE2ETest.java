@@ -214,4 +214,22 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .subscribe();
         consumer.getLastMessageId();
     }
+
+    public void testGetLastIndex() throws Exception {
+        final String topic = "persistent://prop/ns-abc/topic-testGetLastIndex";
+
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        Assert.assertEquals(admin.topics().getInternalStats(topic).lastIndex, -1);
+        producer.newMessage().value("hello".getBytes()).send();
+
+        Assert.assertEquals(admin.topics().getInternalStats(topic).lastIndex, 0);
+
+        producer.newMessage().value("hello".getBytes()).send();
+        Assert.assertEquals(admin.topics().getInternalStats(topic).lastIndex, 1);
+    }
 }

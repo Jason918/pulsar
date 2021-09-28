@@ -72,11 +72,13 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -1959,6 +1961,7 @@ public class PersistentTopic extends AbstractTopic
         stats.pendingAddEntriesCount = ml.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
+        stats.lastIndex = getLastIndex();
         stats.state = ml.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
@@ -2690,6 +2693,15 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public Position getLastPosition() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    @Override
+    public long getLastIndex() {
+        ManagedLedgerInterceptor interceptor = ledger.getManagedLedgerInterceptor();
+        if (interceptor instanceof ManagedLedgerInterceptorImpl) {
+            return ((ManagedLedgerInterceptorImpl) interceptor).getIndex();
+        }
+        return -1;
     }
 
     @Override

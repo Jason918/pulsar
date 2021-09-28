@@ -204,6 +204,12 @@ public interface Topic {
 
     Position getLastPosition();
 
+    /**
+     * return the index of the last message.
+     * return -1, if no message is ever written to this topic or AppendIndexMetadataInterceptor is not active in config.
+     */
+    long getLastIndex();
+
     CompletableFuture<MessageId> getLastMessageId();
 
     /**
