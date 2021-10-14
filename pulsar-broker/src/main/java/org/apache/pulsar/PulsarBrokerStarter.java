@@ -94,15 +94,6 @@ public class PulsarBrokerStarter {
         @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
         private String fnWorkerConfigFile =
                 Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
-
-        @Parameter(names = {"-cn", "--clusterName"},
-                description = "Overwrite broker.conf clusterName if set")
-        private String clusterName = "";
-
-        @Parameter(names = {"-ad", "--advertisedAddress"},
-                description = "Overwrite broker.conf advertisedAddress if set")
-        private String advertisedAddress = "";
-
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
     }
