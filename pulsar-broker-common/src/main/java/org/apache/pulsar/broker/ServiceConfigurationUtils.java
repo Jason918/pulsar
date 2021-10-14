@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker;
 
+import java.net.NetworkInterface;
+import java.util.Enumeration;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.slf4j.Logger;
@@ -42,11 +44,41 @@ public class ServiceConfigurationUtils {
 
     public static String unsafeLocalhostResolve() {
         try {
+            if (System.getenv().containsKey("advertisedAddressAsIp")
+                    && System.getenv("advertisedAddressAsIp").equalsIgnoreCase("true")) {
+                return getHostAddress();
+            }
             // Get the fully qualified hostname
             return InetAddress.getLocalHost().getCanonicalHostName();
         } catch (UnknownHostException ex) {
             LOG.error(ex.getMessage(), ex);
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
+        }
+    }
+
+    public static String getHostAddress() {
+        try {
+            Enumeration<NetworkInterface> netInterfaces = NetworkInterface.getNetworkInterfaces();
+
+            while(netInterfaces.hasMoreElements()) {
+                NetworkInterface ni = netInterfaces.nextElement();
+                if (!ni.getName().equalsIgnoreCase("eth0")) {
+                    continue;
+                }
+                Enumeration<InetAddress> ips = ni.getInetAddresses();
+                while(ips.hasMoreElements()) {
+                    InetAddress ip = ips.nextElement();
+                    if (!ip.getHostAddress().equals("127.0.0.1")
+                            && !ip.isLoopbackAddress()
+                            && !ip.getHostAddress().contains(":")) {
+                        return ip.getHostAddress();
+                    }
+                }
+            }
+            throw new RuntimeException("Could not find eth0 netInterfaces");
+        } catch (Exception e) {
+            LOG.error("get ip failed", e);
+            throw new RuntimeException("Fail to get eth0 ip: " + e.getMessage());
         }
     }
 
