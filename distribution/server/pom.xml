@@ -33,6 +33,10 @@
   <packaging>pom</packaging>
   <name>Pulsar :: Distribution :: Server</name>
 
+  <properties>
+    <assemble.descriptor>src/assemble/bin.xml</assemble.descriptor>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -271,7 +275,7 @@
               <tarLongFileMode>posix</tarLongFileMode>
               <finalName>apache-pulsar-${project.version}</finalName>
               <descriptors>
-                <descriptor>src/assemble/bin.xml</descriptor>
+                <descriptor>${assemble.descriptor}</descriptor>
               </descriptors>
             </configuration>
           </execution>
@@ -328,6 +332,12 @@
     <profile>
       <id>core-modules</id>
       <!-- allow building the distribution without pulsar-presto-distribution when core-modules is active -->
+    </profile>
+    <profile>
+      <id>dop</id>
+      <properties>
+        <assemble.descriptor>src/assemble/dop_bin.xml</assemble.descriptor>
+      </properties>
     </profile>
     <profile>
       <id>main</id>

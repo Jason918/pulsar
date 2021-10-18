@@ -53,7 +53,12 @@
         <module>server</module>
       </modules>
     </profile>
-
+    <profile>
+      <id>dop</id>
+      <modules>
+        <module>server</module>
+      </modules>
+    </profile>
   </profiles>
 
   <build>

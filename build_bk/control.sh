@@ -1,4 +1,22 @@
 #!/bin/bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
 
 SERVICE="bookie"
 PULSAR_HOME=$(cd $(dirname $0) && pwd -P)
@@ -22,18 +40,35 @@ function start() {
     date >> ${CONSOLE_OUT_LOG}
 
     #define default configs here.
-    PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bookkeeper.test.conf"
+    PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bookkeeper.conf"
     PULSAR_MEM="-Xms10G -Xmx10G -XX:MaxDirectMemorySize=5G"
     PULSAR_GC="-XX:+ParallelRefProcEnabled -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:InitiatingHeapOccupancyPercent=70 -XX:G1HeapRegionSize=32m"
     PULSAR_GC_LOG_FILE="${PULSAR_LOG_DIR}/gc.log"
     PULSAR_GC_LOG="-XX:+PrintGCApplicationStoppedTime -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${PULSAR_GC_LOG_FILE} -XX:+UseGCLogFileRotation
                    -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=200m"
 
+
+    # SERVICE_NAME: e.g, cproxy-1.binlog.fd.rocketmq.fd.didi.com
     SERVICE_NAME="test"
     if [ -f "${PULSAR_HOME}/.deploy/service.service_name.txt" ]; then
         SERVICE_NAME=$(cat "${PULSAR_HOME}/.deploy/service.service_name.txt")
     elif [ $DIDIENV_ODIN_SERVICE_NAME ];then
         SERVICE_NAME=$DIDIENV_ODIN_SERVICE_NAME
+    fi
+
+    # CLUSTER_NAME: e.g, gz01
+    CLUSTER_NAME="test"
+     if [ -f "${PROXY_HOME}/.deploy/service.cluster.txt" ]; then
+        CLUSTER_NAME=$(cat .deploy/service.cluster.txt)
+    elif [ $DIDIENV_ODIN_CLUSTER ]; then
+        CLUSTER_NAME=$DIDIENV_ODIN_CLUSTER
+    fi
+
+    # SERVICE_CLUSTER_NAME: e.g, gz01.cproxy-1.binlog.fd.rocketmq.fd.didi.com
+    SERVICE_CLUSTER_NAME=${CLUSTER_NAME}"."${SERVICE_NAME}
+
+    if [[ ${CLUSTER_NAME} == hna-pre* ]]; then
+      PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.preview.conf"
     fi
 
     #docker machine flag,if it's a docker machine, get real memory and set the flag 1
