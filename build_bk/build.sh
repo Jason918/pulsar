@@ -18,22 +18,13 @@
 # under the License.
 #
 
-if [ -d "/usr/local/jdk1.8.0_65" ]; then 
-    export JAVA_HOME=/usr/local/jdk1.8.0_65
-    export PATH=$JAVA_HOME/bin:$PATH
-fi
-export MAVEN_HOME=/home/scmtools/thirdparty/maven-3.6.3
-export PATH=$MAVEN_HOME/bin:$PATH
-
-BASEDIR=$(dirname "$0")
 CURDIR=`pwd`
 echo "CURDIR: $CURDIR"
-cd ${BASEDIR}/
-echo "cd ${BASEDIR}/"
+OUTPUT_PATH=$CURDIR/output
 
-echo "start build pulsar....."
-echo "mvn clean package -DskipTests Pdop,-main -T2C"
-mvn clean package -DskipTests -Pdop,-main -T2C
+mkdir -p $OUTPUT_PATH
+rsync -av --exclude build.sh --exclude output * $OUTPUT_PATH
+
 ret=$?
 if [ $ret -ne 0 ];then
     echo "===== maven build failure ====="
@@ -41,8 +32,3 @@ if [ $ret -ne 0 ];then
 else
     echo -n "===== maven build successfully! ====="
 fi
-
-OUTPUT_PATH=${CURDIR}/output
-mkdir -p ${OUTPUT_PATH}
-
-cp distribution/server/target/apache-pulsar-*-bin.tar.gz  ${OUTPUT_PATH}

@@ -44,8 +44,8 @@ public class ServiceConfigurationUtils {
 
     public static String unsafeLocalhostResolve() {
         try {
-            if (System.getenv().containsKey("advertisedAddressAsIp")
-                    && System.getenv("advertisedAddressAsIp").equalsIgnoreCase("true")) {
+            if (System.getenv().containsKey("ipAsAdvertisedAddress")
+                    && System.getenv("ipAsAdvertisedAddress").equalsIgnoreCase("true")) {
                 return getHostAddress();
             }
             // Get the fully qualified hostname
