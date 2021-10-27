@@ -46,7 +46,9 @@ public class ServiceConfigurationUtils {
         try {
             if (System.getenv().containsKey("ipAsAdvertisedAddress")
                     && System.getenv("ipAsAdvertisedAddress").equalsIgnoreCase("true")) {
-                return getHostAddress();
+                String address = getHostAddress();
+                LOG.info("ipAsAdvertisedAddress set true, address={}", address);
+                return address;
             }
             // Get the fully qualified hostname
             return InetAddress.getLocalHost().getCanonicalHostName();
@@ -109,7 +111,11 @@ public class ServiceConfigurationUtils {
             }
         }
 
-        return getDefaultOrConfiguredAddress(advertisedAddress);
+        String defaultAddress = getDefaultOrConfiguredAddress(advertisedAddress);
+        if (configuration.getAdvertisedAddress() == null) {
+            configuration.setAdvertisedAddress(defaultAddress);
+        }
+        return defaultAddress;
     }
 
 }
