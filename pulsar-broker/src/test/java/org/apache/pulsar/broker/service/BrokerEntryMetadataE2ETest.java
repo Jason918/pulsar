@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -38,6 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Test for the broker entry metadata.
  */
+@Slf4j
 @Test(groups = "broker")
 public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
@@ -162,12 +167,65 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
+    @Test(timeOut = 20000)
+    public void testGetMessageByIndex() throws Exception {
+        final String topic = newTopicName();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        byte[] data = ("hello" + System.currentTimeMillis()).getBytes();
+        MessageIdImpl messageId = (MessageIdImpl) producer.newMessage()
+                .value(data)
+                .send();
+        producer.close();
+
+        admin.topics().createSubscription(topic, "sub", MessageId.earliest);
+        MessageImpl<byte[]> message;
+        message = (MessageImpl<byte[]>) admin.topics().getMessageByIndex(topic, 0);
+        Assert.assertEquals(message.getMessageId(), messageId);
+        Assert.assertEquals(message.getBrokerEntryMetadata().getIndex(), 0);
+
+        log.info("------get index -1");
+        Assert.assertNull(admin.topics().getMessageByIndex(topic, -1));
+        log.info("------get index 1");
+        Assert.assertNull(admin.topics().getMessageByIndex(topic, 1));
+
+        producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(10, TimeUnit.MINUTES)
+                .batchingMaxMessages(5)
+                .create();
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            messageIds.add(producer.newMessage()
+                    .value(("hello" + i).getBytes())
+                    .sendAsync());
+        }
+        messageIds.get(9).get();
+
+        Assert.assertNull(admin.topics().getMessageByIndex(topic, -1));
+
+        for (int i = 1; i <= 10; i++) {
+            message = (MessageImpl<byte[]>) admin.topics().getMessageByIndex(topic, i);
+            Assert.assertEquals(message.getMessageId(), messageIds.get(i - 1).get());
+            Assert.assertEquals(message.getBrokerEntryMetadata().getIndex(), i);
+        }
+        Assert.assertNull(admin.topics().getMessageByIndex(topic, 11));
+
+        producer.close();
+
+    }
+
 
     @Test(timeOut = 20000)
     public void testExamineMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
-        final long eventTime= 200;
+        final long eventTime = 200;
         final long deliverAtTime = 300;
 
         @Cleanup

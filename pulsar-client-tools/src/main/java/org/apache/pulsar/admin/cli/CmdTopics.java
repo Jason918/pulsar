@@ -907,13 +907,13 @@ public class CmdTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-l", "--ledgerId" },
-            description = "ledger id pointing to the desired ledger",
-            required = true)
+                description = "ledger id pointing to the desired ledger",
+                required = true)
         private long ledgerId;
 
         @Parameter(names = { "-e", "--entryId" },
-            description = "entry id pointing to the desired entry",
-            required = true)
+                description = "entry id pointing to the desired entry",
+                required = true)
         private long entryId;
 
         @Override
@@ -928,6 +928,43 @@ public class CmdTopics extends CmdBase {
                 if (message.getMessageId() instanceof BatchMessageIdImpl) {
                     BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
                     System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                } else {
+                    MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                }
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
+                    print(message.getProperties());
+                }
+                ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+                System.out.println(ByteBufUtil.prettyHexDump(date));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Get message by its index")
+    private class GetMessageByIndex extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"-i", "--index"},
+                description = "index of the message",
+                required = true)
+        private long index;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            Message<byte[]> message = getTopics().getMessageByIndex(persistentTopic, index);
+            if (message == null) {
+                System.out.println("Cannot find any messages based on index:" + index);
+            } else {
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                    System.out.println(
+                            "Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId
+                                    .getBatchIndex());
                 } else {
                     MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());

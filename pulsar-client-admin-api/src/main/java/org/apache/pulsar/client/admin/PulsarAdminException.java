@@ -85,6 +85,10 @@ public class PulsarAdminException extends Exception {
         public NotFoundException(Throwable t, String httpError, int statusCode) {
             super(httpError, t, httpError, statusCode);
         }
+
+        public NotFoundException(String message) {
+            super(message);
+        }
     }
 
     /**

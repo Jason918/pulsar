@@ -2326,6 +2326,63 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected void internalGetMessageByIndex(AsyncResponse asyncResponse, long index, boolean authoritative) {
+        try {
+            // will redirect if the topic not owned by current broker
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
+
+            if (topicName.isGlobal()) {
+                validateGlobalNamespaceOwnership(namespaceName);
+            }
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+            ledger.asyncFindPositionByIndex(index).whenComplete((position, throwable) -> {
+                if (throwable != null) {
+                    log.error("[{}] Failed to get message with index {} from {}",
+                            clientAppId(), index, topicName, throwable);
+                    asyncResponse.resume(new RestException(throwable));
+                    return;
+                }
+                if (position == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                            "Message not found, Position=null. Index < minIndex"));
+                    return;
+                }
+                PositionImpl lac = (PositionImpl) ledger.getLastConfirmedEntry();
+                if (lac == null || lac.compareTo((PositionImpl) position) < 0) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found, index > maxIndex"));
+                    return;
+                }
+                ledger.asyncReadEntry((PositionImpl) position, new AsyncCallbacks.ReadEntryCallback() {
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        asyncResponse.resume(new RestException(exception));
+                    }
+
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        try {
+                            asyncResponse.resume(generateResponseWithEntry(entry));
+                        } catch (IOException exception) {
+                            asyncResponse.resume(new RestException(exception));
+                        } finally {
+                            if (entry != null) {
+                                entry.release();
+                            }
+                        }
+                    }
+                }, null);
+            });
+        } catch (NullPointerException npe) {
+            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
+        } catch (Exception exception) {
+            log.error("[{}] Failed to get message with index {} from {}",
+                    clientAppId(), index, topicName, exception);
+            asyncResponse.resume(new RestException(exception));
+        }
+    }
+
     protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,

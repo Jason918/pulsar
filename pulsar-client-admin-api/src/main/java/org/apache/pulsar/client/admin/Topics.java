@@ -1350,6 +1350,28 @@ public interface Topics {
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
+     * Get a message by its messageId via a topic subscription.
+     * @param topic
+     *            Topic name
+     * @param index
+     *            Index id
+     * @return the message indexed by the messageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    Message<byte[]> getMessageByIndex(String topic, long index) throws PulsarAdminException;
+
+    /**
+     * Get a message by its messageId via a topic subscription asynchronously.
+     * @param topic
+     *            Topic name
+     * @param index
+     *            Ledger id
+     * @return a future that can be used to track when the message is returned
+     */
+    CompletableFuture<Message<byte[]>> getMessageByIndexAsync(String topic, long index);
+
+    /**
      * Create a new subscription on a topic.
      *
      * @param topic

@@ -1291,6 +1291,80 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Message<byte[]> getMessageByIndex(String topic, long index) throws PulsarAdminException {
+        try {
+            return getMessageByIndexAsync(topic, index).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Message<byte[]>> getMessageByIndexAsync(String topic, long index) {
+        CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        getRemoteMessageByIndex(topic, index).handle((r, ex) -> {
+            if (ex != null) {
+                if (ex instanceof NotFoundException) {
+                    log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
+                    future.complete(r);
+                } else {
+                    future.completeExceptionally(ex);
+                }
+                return null;
+            }
+            future.complete(r);
+            return null;
+        });
+        return future;
+    }
+
+    private CompletableFuture<Message<byte[]>> getRemoteMessageByIndex(String topic, long index) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "index", Long.toString(index));
+        final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<Response>() {
+            @Override
+            public void completed(Response response) {
+                try {
+                    List<Message<byte[]>> msgList = getMessagesFromHttpResponse(topicName.toString(), response);
+                    int msgNum = msgList.size();
+                    BrokerEntryMetadata brokerEntryMeta =
+                            ((MessageImpl<byte[]>) msgList.get(0)).getBrokerEntryMetadata();
+                    if (brokerEntryMeta == null) {
+                        future.completeExceptionally(new NotFoundException("BrokerEntryMeta missing"));
+                        return;
+                    }
+                    if (index > brokerEntryMeta.getIndex() || index < brokerEntryMeta.getIndex() - msgNum + 1) {
+                        future.completeExceptionally(new NotFoundException(String.format(
+                                "index %d is out of range in batch message [%d,%d]",
+                                index, brokerEntryMeta.getIndex() - msgNum + 1, brokerEntryMeta.getIndex())));
+                        return;
+                    }
+                    MessageImpl<byte[]> msg =
+                            (MessageImpl<byte[]>) msgList.get((int) (index - brokerEntryMeta.getIndex() + msgNum - 1));
+                    //reset the index
+                    msg.getBrokerEntryMetadata().setIndex(index);
+                    future.complete(msg);
+                } catch (Exception e) {
+                    future.completeExceptionally(getApiException(e));
+                }
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+
+    @Override
     public void createSubscription(String topic, String subscriptionName, MessageId messageId)
             throws PulsarAdminException {
         try {

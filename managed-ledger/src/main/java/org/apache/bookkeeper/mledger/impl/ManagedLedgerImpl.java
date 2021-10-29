@@ -48,7 +48,6 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -126,12 +125,14 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -1662,6 +1663,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpFindNewest op = new OpFindNewest(this, startPosition, predicate, max, findEntryCallback, null);
         op.find();
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Position> asyncFindPositionByIndex(long index) {
+        return asyncFindPosition(entry -> {
+            try {
+                BrokerEntryMetadata meta = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                if (meta != null) {
+                    return meta.getIndex() < index;
+                }
+            } catch (Exception e) {
+                log.error("[{}] Error deserializing message for finding message position by index ", getName(), e);
+            } finally {
+                entry.release();
+            }
+            return false;
+        });
     }
 
     @Override

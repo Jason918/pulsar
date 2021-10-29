@@ -613,6 +613,11 @@ public interface ManagedLedger {
     CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
 
     /**
+     * Find position by index.
+     * */
+    CompletableFuture<Position> asyncFindPositionByIndex(long index);
+
+    /**
      * Get the ManagedLedgerInterceptor for ManagedLedger.
      * */
     ManagedLedgerInterceptor getManagedLedgerInterceptor();

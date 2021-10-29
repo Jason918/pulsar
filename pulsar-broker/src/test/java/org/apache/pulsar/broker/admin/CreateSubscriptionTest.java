@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -28,6 +30,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -46,6 +49,28 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testCreateSub() throws Exception {
+        String PULSAR_TOPIC = "test-pulsar-topic";
+        String PULSAR_GROUP = "cg_test_pulsar_group";
+        final String topic = PULSAR_TOPIC + "_" + System.nanoTime();
+        final String group = PULSAR_GROUP + "_" + System.nanoTime();
+
+        admin.topics().createPartitionedTopic(topic, 1);
+
+        Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create();
+        p.send("data".getBytes(StandardCharsets.UTF_8));
+        p.send("data".getBytes(StandardCharsets.UTF_8));
+        p.send("data".getBytes(StandardCharsets.UTF_8));
+
+        admin.topics().createSubscription(topic, group, MessageId.latest);
+
+        Map<String, ? extends SubscriptionStats> subStats =
+                admin.topics().getPartitionedStats(topic, false, true, false)
+                        .getSubscriptions();
+        assertEquals(subStats.get(group).getMsgBacklog(), 0);
     }
 
     @Test
