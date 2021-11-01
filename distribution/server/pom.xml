@@ -83,6 +83,10 @@
           <groupId>org.objenesis</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.thrift</groupId>
+          <artifactId>libthrift</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -192,6 +196,10 @@
         <exclusion>
           <groupId>org.bouncycastle</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.thrift</groupId>
+          <artifactId>libthrift</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
