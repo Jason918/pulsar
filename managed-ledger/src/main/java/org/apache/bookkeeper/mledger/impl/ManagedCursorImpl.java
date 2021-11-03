@@ -323,7 +323,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Performs the initial recovery, reading the mark-deleted position from the ledger and then calling initialize to
      * have a new opened ledger.
      */
-    void recover(final VoidCallback callback) {
+    public void recover(final VoidCallback callback) {
         // Read the meta-data ledgerId from the store
         log.info("[{}] Recovering from bookkeeper ledger cursor: {}", ledger.getName(), name);
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<ManagedCursorInfo>() {
