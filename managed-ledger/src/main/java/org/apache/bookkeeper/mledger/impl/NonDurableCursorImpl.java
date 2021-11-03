@@ -88,7 +88,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     /// Overridden methods from ManagedCursorImpl. Void implementation to skip cursor persistence
 
     @Override
-    public void recover(final VoidCallback callback) {
+    void recover(final VoidCallback callback) {
         /// No-Op
     }
 
