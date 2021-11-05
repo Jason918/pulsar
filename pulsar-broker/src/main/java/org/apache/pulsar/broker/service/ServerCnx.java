@@ -2230,10 +2230,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             ctx.writeAndFlush(Commands.newEmbeddedRpcResponse(responseByteBufPair.getLeft(),
                     responseByteBufPair.getRight()));
         }).exceptionally(throwable -> {
-            String errMsg =
-                    String.format("ProtocolRpcRequest, missing handler for request code %d, topic=%s, subscription=%s",
-                            requestCode, topic, subscription);
-            log.error(errMsg);
+            String errMsg = String.format("ProtocolRpcRequest, exception handling request code %d, "
+                            + "topic=%s, subscription=%s", requestCode, topic, subscription);
+            log.error(errMsg, throwable);
             commandSender.sendErrorResponse(requestId, ServerError.UnknownError, errMsg);
             return null;
         });
