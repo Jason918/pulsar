@@ -1733,6 +1733,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         internalAsyncMarkDelete(newPosition, properties, callback, ctx);
     }
 
+    public void asyncMarkDeleteIgnorePosition(Map<String, Long> properties, final MarkDeleteCallback callback, final Object ctx) {
+        PositionImpl ignoredPosition = PositionImpl.earliest;
+        if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
+            isDirty = true;
+            lastMarkDeleteEntry = new MarkDeleteEntry(ignoredPosition, properties, null, null);
+            callback.markDeleteComplete(ctx);
+            return;
+        }
+        internalAsyncMarkDelete(ignoredPosition, properties, callback, ctx);
+    }
+
     protected void internalAsyncMarkDelete(final PositionImpl newPosition, Map<String, Long> properties,
             final MarkDeleteCallback callback, final Object ctx) {
         ledger.mbean.addMarkDeleteOp();
