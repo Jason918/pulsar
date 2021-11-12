@@ -69,6 +69,8 @@ function start() {
 
     if [[ ${CLUSTER_NAME} == hna-pre* ]]; then
       PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.preview.conf"
+    elif [[ ${SERVICE_NAME} == perf.bookkeeper.dop.ddmq.didi.com ]]; then
+      PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.perf.conf"
     fi
 
     #docker machine flag,if it's a docker machine, get real memory and set the flag 1
@@ -83,8 +85,8 @@ function start() {
 
    #for docker machine, change default memory limit
     if ((DOCKER_MACHINE==1));then
-  	    HEAP_SIZE=$((DOCKER_MEM*6/10))
-        DIRECT_MEMORY_SIZE=$((DOCKER_MEM/10))
+  	    HEAP_SIZE=$((DOCKER_MEM*4/10))
+        DIRECT_MEMORY_SIZE=$((DOCKER_MEM*4/10))
    	    PULSAR_MEM="-Xms${HEAP_SIZE}m -Xmx${HEAP_SIZE}m -XX:MaxDirectMemorySize=${DIRECT_MEMORY_SIZE}m"
     fi
 
