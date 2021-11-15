@@ -123,17 +123,17 @@ function start() {
     PID=$(echo $!)
     echo ${PID} > ${PIDFILE}
     date >> ${CONTROL_LOG}
-    check_pid
-    if [ $? -ne 0 ]; then
-        echo "New pulsar-${SERVICE} is running, pid=$pid"
-        echo "New pulsar-${SERVICE} is running, pid=$pid" >> ${CONTROL_LOG}
-        jstat -gcutil -t $pid 30s >> ${JSTAT_FILE} 2>&1 &
-	    #remove old deploy folder
-    else
-        echo "Start pulsar-${SERVICE} Failed"
-        echo "Start pulsar-${SERVICE} Failed" >> ${CONTROL_LOG}
-        exit 1
-    fi
+#    check_pid
+#    if [ $? -ne 0 ]; then
+#        echo "New pulsar-${SERVICE} is running, pid=$pid"
+#        echo "New pulsar-${SERVICE} is running, pid=$pid" >> ${CONTROL_LOG}
+#        jstat -gcutil -t $pid 30s >> ${JSTAT_FILE} 2>&1 &
+#	    #remove old deploy folder
+#    else
+#        echo "Start pulsar-${SERVICE} Failed"
+#        echo "Start pulsar-${SERVICE} Failed" >> ${CONTROL_LOG}
+#        exit 1
+#    fi
 }
 
 function stop() {
