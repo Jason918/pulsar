@@ -120,6 +120,8 @@ function start() {
 
     #不能太小，否则判断状态有误
     sleep 5
+    PID=$(echo $!)
+    echo ${PID} > ${PIDFILE}
     date >> ${CONTROL_LOG}
     check_pid
     if [ $? -ne 0 ]; then
