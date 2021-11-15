@@ -61,6 +61,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableLong;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -144,6 +145,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
@@ -156,6 +158,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final SchemaRegistryService schemaService;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
+    private final ConcurrentOpenHashSet<Pair<String, String>> embeddedRpcs;
     private final Map<Long, EmbeddedRpcHandler<?, ?>> protocolRpcHandlers;
     private State state;
     private volatile boolean isActive = true;
@@ -234,6 +237,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // This maps are not heavily contended since most accesses are within the cnx thread
         this.producers = new ConcurrentLongHashMap<>(8, 1);
         this.consumers = new ConcurrentLongHashMap<>(8, 1);
+        this.embeddedRpcs = new ConcurrentOpenHashSet<>(8, 1);
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
@@ -294,6 +298,31 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } catch (BrokerServiceException e) {
                 log.warn("Consumer {} was already closed: {}", consumer, e);
             }
+        });
+
+        // inactive cursor for dop remote rpc
+        embeddedRpcs.forEach(pair -> {
+            String topic = pair.getLeft();
+            String subscription = pair.getRight();
+            try {
+                log.info("channelInactive begin close embeddedRpcs. topic={}, sub={}", topic, subscription);
+                service.getTopicIfExists(TopicName.get(topic).toString()).thenCompose(topicOptional -> {
+                    if (!topicOptional.isPresent()) {
+                        log.warn("channelInactive close embeddedRpcs. topic is not present now, topic={}", topic);
+                    } else {
+                        PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
+                        PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subscription);
+                        if (persistentSubscription != null) {
+                            persistentSubscription.deactivateCursor();
+                            log.info("channelInactive close embeddedRpcs. success deactivate cursor for topic={}, sub={}", topic, subscription);
+                        }
+                    }
+                    return null;
+                }).getNow(null);
+            } catch (Exception e) {
+                log.error("channelInactive close embeddedRpcs. deactivate error. topic={}, sub={}", topic, subscription, e);
+            }
+
         });
         this.service.getPulsarStats().recordConnectionClose();
     }
@@ -2226,6 +2255,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
+        embeddedRpcs.add(Pair.of(topic, subscription));
         handler.handle(embeddedRpcRequest, buffer).thenAccept(responseByteBufPair -> {
             ctx.writeAndFlush(Commands.newEmbeddedRpcResponse(responseByteBufPair.getLeft(),
                     responseByteBufPair.getRight()));
