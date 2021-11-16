@@ -314,13 +314,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subscription);
                         if (persistentSubscription != null) {
                             persistentSubscription.deactivateCursor();
-                            log.info("channelInactive close embeddedRpcs. success deactivate cursor for topic={}, sub={}", topic, subscription);
+                            log.info("channelInactive close embeddedRpcs. success deactivate cursor for topic={},"
+                                    + " sub={}", topic, subscription);
                         }
                     }
                     return null;
                 }).getNow(null);
             } catch (Exception e) {
-                log.error("channelInactive close embeddedRpcs. deactivate error. topic={}, sub={}", topic, subscription, e);
+                log.error("channelInactive close embeddedRpcs. deactivate error. topic={}, sub={}",
+                        topic, subscription, e);
             }
 
         });
