@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM registry.xiaojukeji.com/didionline/dop-pulsar:stable
+FROM registry-v3.intra.xiaojukeji.com/didionline/dop-pulsar:stable
 
 COPY ./899-logsymbol.required.sh  /etc/container/init/
 COPY ./990-startservice.required.sh  /etc/container/init/

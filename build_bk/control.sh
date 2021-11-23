@@ -38,6 +38,8 @@ function start() {
 
     backup_logs
     date >> ${CONSOLE_OUT_LOG}
+    JDK_VERSION=`java -version 2>&1|grep "java version"|awk '{print $3}'`
+    echo "JDK_VERSION: " $JDK_VERSION
 
     #define default configs here.
     PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bookkeeper.conf"
@@ -45,8 +47,12 @@ function start() {
     PULSAR_GC="-XX:+ParallelRefProcEnabled -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:InitiatingHeapOccupancyPercent=70 -XX:G1HeapRegionSize=32m"
     PULSAR_GC_LOG_FILE="${PULSAR_LOG_DIR}/gc.log"
     PULSAR_GC_LOG="-XX:+PrintGCApplicationStoppedTime -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${PULSAR_GC_LOG_FILE} -XX:+UseGCLogFileRotation
-                   -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=200m"
+                   -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=512m"
 
+    if [[ "$JDK_VERSION" =~ ^\"11.0 ]]; then
+          PULSAR_GC_LOG="-Xlog:gc*:file=${PULSAR_GC_LOG_FILE}:time,tid,pid,tags:filecount=5,filesize=512m"
+    fi
+    PULSAR_GC="${PULSAR_GC} ${PULSAR_GC_LOG}"
 
     # SERVICE_NAME: e.g, cproxy-1.binlog.fd.rocketmq.fd.didi.com
     SERVICE_NAME="test"
@@ -96,8 +102,6 @@ function start() {
     export PULSAR_BOOKKEEPER_CONF
     export PULSAR_MEM
     export PULSAR_GC
-    export PULSAR_GC_LOG_FILE
-    export PULSAR_GC_LOG
 
     echo "SERVICE_NAME:" $SERVICE_NAME",   configs:"
     echo "  PULSAR_BOOKKEEPER_CONF:" $PULSAR_BOOKKEEPER_CONF
