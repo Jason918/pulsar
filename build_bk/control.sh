@@ -67,7 +67,7 @@ function start() {
     # SERVICE_CLUSTER_NAME: e.g, gz01.cproxy-1.binlog.fd.rocketmq.fd.didi.com
     SERVICE_CLUSTER_NAME=${CLUSTER_NAME}"."${SERVICE_NAME}
 
-    if [[ ${CLUSTER_NAME} == hna-pre* ]]; then
+    if [[ ${SERVICE_NAME} == preview-bookkeeper.bookkeeper.dop.preview.ddmq.didi.com ]]; then
       PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.preview.conf"
     elif [[ ${SERVICE_NAME} == perf.bookkeeper.dop.ddmq.didi.com ]]; then
       PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.perf.conf"
