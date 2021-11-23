@@ -46,3 +46,4 @@ OUTPUT_PATH=${CURDIR}/output
 mkdir -p ${OUTPUT_PATH}
 
 cp distribution/server/target/apache-pulsar-*-bin.tar.gz  ${OUTPUT_PATH}
+cp Dockerfile ${OUTPUT_PATH}
