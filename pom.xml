@@ -251,6 +251,19 @@ flexible messaging model and an intuitive client API.</description>
     <dependencies>
 
       <dependency>
+        <groupId>org.codehaus.groovy</groupId>
+        <artifactId>groovy</artifactId>
+        <version>2.4.7</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.codehaus.groovy</groupId>
+        <artifactId>groovy-jsr223</artifactId>
+        <version>2.4.7</version>
+        <scope>runtime</scope>
+      </dependency>
+
+      <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
         <version>${asynchttpclient.version}</version>
