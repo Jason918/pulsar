@@ -23,9 +23,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -33,8 +33,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
-import io.netty.buffer.ByteBuf;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
@@ -52,8 +50,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
@@ -106,7 +102,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // is restored
 
         // Force to close the ZK client object so that BK will fail to close the ledger
-        bkc.getZkHandle().close();
+        bkc.getMetadataClientDriver().close();
 
         try {
             ledger.addEntry("entry-1".getBytes());

@@ -20,7 +20,6 @@ package org.apache.bookkeeper.client;
 
 import java.io.IOException;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.MetadataClientDriver;
 import org.apache.zookeeper.KeeperException;
 
 /**
@@ -29,10 +28,6 @@ import org.apache.zookeeper.KeeperException;
 public class BookKeeperTestClient extends BookKeeper {
     public BookKeeperTestClient(ClientConfiguration conf) throws IOException, InterruptedException, BKException {
         super(conf);
-    }
-
-    public MetadataClientDriver getZkHandle() {
-        return super.getMetadataClientDriver();
     }
 
     public ClientConfiguration getConf() {
