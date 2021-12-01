@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -47,6 +48,7 @@ import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
@@ -92,9 +94,11 @@ public abstract class AbstractTopic implements Topic {
 
     // Whether messages published must be encrypted or not in this topic
     protected volatile boolean isEncryptionRequired = false;
+
+    @Getter
     protected volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
             SchemaCompatibilityStrategy.FULL;
-    protected volatile boolean isAllowAutoUpdateSchema = true;
+    protected volatile Boolean isAllowAutoUpdateSchema;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
@@ -134,17 +138,9 @@ public abstract class AbstractTopic implements Topic {
         this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration()
                 .getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
-        Policies policies = null;
-        try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                    .orElseGet(() -> new Policies());
-        } catch (Exception e) {
-            log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
-        }
         this.preciseTopicPublishRateLimitingEnable =
                 brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
-        updatePublishDispatcher(policies);
+        updatePublishDispatcher(Optional.empty());
     }
 
     protected boolean isProducersExceeded() {
@@ -155,7 +151,7 @@ public abstract class AbstractTopic implements Topic {
             try {
                 policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                         .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                        .orElseGet(() -> new Policies());
+                    .orElseGet(Policies::new);
             } catch (Exception e) {
                 policies = new Policies();
             }
@@ -201,13 +197,10 @@ public abstract class AbstractTopic implements Topic {
                 // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
                 policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                         .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
-
                 if (policies == null) {
                     policies = new Policies();
                 }
             } catch (Exception e) {
-                log.warn("[{}] Failed to get namespace policies that include max number of consumers: {}", topic,
-                        e.getMessage());
                 policies = new Policies();
             }
             maxConsumers = policies.max_consumers_per_topic;
@@ -337,20 +330,28 @@ public abstract class AbstractTopic implements Topic {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
-        return isAllowAutoUpdateSchema ? schemaRegistryService
-                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy)
-                : schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
-                schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
-                        .thenCompose(schemaVersion -> {
-                    if (schemaVersion == null) {
-                        return FutureUtil
-                                .failedFuture(
-                                        new IncompatibleSchemaException(
-                                                "Schema not found and schema auto updating is disabled."));
-                    } else {
-                        return CompletableFuture.completedFuture(schemaVersion);
-                    }
-                }));
+
+        if (allowAutoUpdateSchema()) {
+            return schemaRegistryService.putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+        } else {
+            return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
+                    schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
+                            .thenCompose(schemaVersion -> {
+                                if (schemaVersion == null) {
+                                    return FutureUtil.failedFuture(new IncompatibleSchemaException(
+                                            "Schema not found and schema auto updating is disabled."));
+                                } else {
+                                    return CompletableFuture.completedFuture(schemaVersion);
+                                }
+                            }));
+        }
+    }
+
+    private boolean allowAutoUpdateSchema() {
+        if (isAllowAutoUpdateSchema == null) {
+            return brokerService.pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+        }
+        return isAllowAutoUpdateSchema;
     }
 
     @Override
@@ -535,10 +536,17 @@ public abstract class AbstractTopic implements Topic {
         PUBLISH_LATENCY.observe(latency, unit);
     }
 
-    protected void setSchemaCompatibilityStrategy (Policies policies) {
-        if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
+    protected void setSchemaCompatibilityStrategy(Policies policies) {
+        if (SystemTopicClient.isSystemTopic(TopicName.get(this.topic))) {
+            schemaCompatibilityStrategy =
+                    brokerService.pulsar().getConfig().getSystemTopicSchemaCompatibilityStrategy();
+        } else if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
+            schemaCompatibilityStrategy = brokerService.pulsar()
+                    .getConfig().getSchemaCompatibilityStrategy();
+            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
+                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                        policies.schema_auto_update_compatibility_strategy);
+            }
         } else {
             schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         }
@@ -767,10 +775,10 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public void updateMaxPublishRate(Policies policies) {
-        updatePublishDispatcher(policies);
+        updatePublishDispatcher(Optional.of(policies));
     }
 
-    private void updatePublishDispatcher(Policies policies) {
+    private void updatePublishDispatcher(Optional<Policies> optPolicies) {
         //if topic-level policy exists, try to use topic-level publish rate policy
         Optional<PublishRate> topicPublishRate = getTopicPolicies().map(TopicPolicies::getPublishRate);
         if (topicPublishRate.isPresent()) {
@@ -780,9 +788,23 @@ public abstract class AbstractTopic implements Topic {
             return;
         }
 
+        Policies policies;
+        try {
+            if (optPolicies.isPresent()) {
+                policies = optPolicies.get();
+            } else {
+                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                    .orElseGet(Policies::new);
+            }
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
+            policies = new Policies();
+        }
+
         //topic-level policy is not set, try to use namespace-level rate policy
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
-        final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
+        final PublishRate publishRate = policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
                 : null;
 

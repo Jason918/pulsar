@@ -197,6 +197,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
+    private final ConnectionController connectionController;
 
     private static final KeySharedMeta emptyKeySharedMeta = new KeySharedMeta()
             .setKeySharedMode(KeySharedMode.AUTO_SPLIT);
@@ -253,11 +254,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
                 / conf.getNumIOThreads();
         this.resumeThresholdPendingBytesPerThread = this.maxPendingBytesPerThread / 2;
+        this.connectionController = new ConnectionController.DefaultConnectionController(conf);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        ConnectionController.Sate sate = connectionController.increaseConnection(remoteAddress);
+        if (!sate.equals(ConnectionController.Sate.OK)) {
+            ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
+                    sate.equals(ConnectionController.Sate.REACH_MAX_CONNECTION)
+                            ? "Reached the maximum number of connections"
+                            : "Reached the maximum number of connections on address" + remoteAddress));
+            ctx.channel().close();
+            return;
+        }
         log.info("New connection from {}", remoteAddress);
         this.ctx = ctx;
         this.commandSender = new PulsarCommandSenderImpl(getBrokerService().getInterceptor(), this);
@@ -268,6 +279,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        connectionController.decreaseConnection(ctx.channel().remoteAddress());
         isActive = false;
         log.info("Closed connection from {}", remoteAddress);
         BrokerInterceptor brokerInterceptor = getBrokerService().getInterceptor();
@@ -1593,9 +1605,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         CompletableFuture<Producer> producerFuture = producers.get(producerId);
         if (producerFuture == null) {
-            log.warn("[{}] Producer was not registered on the connection. producerId={}", remoteAddress, producerId);
-            commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
-                    "Producer was not registered on the connection");
+            log.info("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1640,8 +1651,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
         if (consumerFuture == null) {
-            log.warn("[{}] Consumer was not registered on the connection: consumerId={}", remoteAddress, consumerId);
-            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, "Consumer not found");
+            log.info("[{}] Consumer was not registered on the connection: {}", consumerId, remoteAddress);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1723,10 +1734,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
         if (lastPosition.getEntryId() == -1) {
-            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                    lastPosition.getLedgerId(), lastPosition.getEntryId(), partitionIndex, -1,
-                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+            handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
+                    markDeletePosition);
             return;
         }
 
@@ -1754,12 +1763,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
                 if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
-                    // in this case, the ledgers been removed except the current ledger
-                    // and current ledger without any data
-                    ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                            -1, -1, partitionIndex, -1,
-                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                    handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
+                            markDeletePosition);
                 } else {
                     ctx.writeAndFlush(Commands.newError(
                             requestId, ServerError.MetadataError,
@@ -1778,6 +1783,37 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
                         markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
             }
+        });
+    }
+
+    private void handleLastMessageIdFromCompactedLedger(PersistentTopic persistentTopic, long requestId,
+            int partitionIndex, PositionImpl markDeletePosition) {
+        persistentTopic.getCompactedTopic().readLastEntryOfCompactedLedger().thenAccept(entry -> {
+            if (entry != null) {
+                // in this case, all the data has been compacted, so return the last position
+                // in the compacted ledger to the client
+                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                int bs = metadata.getNumMessagesInBatch();
+                int largestBatchIndex = bs > 0 ? bs - 1 : -1;
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                        entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
+                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                entry.release();
+            } else {
+                // in this case, the ledgers been removed except the current ledger
+                // and current ledger without any data
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                        -1, -1, partitionIndex, -1,
+                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+            }
+        }).exceptionally(ex -> {
+            ctx.writeAndFlush(Commands.newError(
+                    requestId, ServerError.MetadataError,
+                    "Failed to read last entry of the compacted Ledger "
+                            + ex.getCause().getMessage()));
+            return null;
         });
     }
 

@@ -23,9 +23,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.PulsarService.isTransactionSystemTopic;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -96,7 +98,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -166,6 +167,7 @@ import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
@@ -976,6 +978,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         }
 
+        if (log.isDebugEnabled()) {
+            log.debug("Topic {} is not loaded, try to delete from metadata", topic);
+        }
         // Topic is not loaded, though we still might be able to delete from metadata
         TopicName tn = TopicName.get(topic);
         if (!tn.isPersistent()) {
@@ -984,19 +989,75 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
-            @Override
-            public void deleteLedgerComplete(Object ctx) {
-                future.complete(null);
-            }
 
-            @Override
-            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(exception);
+        CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
+        deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
+        deleteTopicAuthenticationFuture.whenComplete((v, ex) -> {
+            if (ex != null) {
+                future.completeExceptionally(ex);
+                return;
             }
-        }, null);
+            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
+                @Override
+                public void deleteLedgerComplete(Object ctx) {
+                    future.complete(null);
+                }
+
+                @Override
+                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+        });
+
 
         return future;
+    }
+
+    public void deleteTopicAuthenticationWithRetry(String topic, CompletableFuture<Void> future, int count) {
+        if (count == 0) {
+            log.error("The number of retries has exhausted for topic {}", topic);
+            future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
+            return;
+        }
+        NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
+        // Check whether there are auth policies for the topic
+        pulsar.getPulsarResources().getNamespaceResources()
+            .getAsync(path(POLICIES, namespaceName.toString())).thenAccept(optPolicies -> {
+            if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
+                    .containsKey(topic)) {
+                // if there is no auth policy for the topic, just complete and return
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication policies not found for topic {}", topic);
+                }
+                future.complete(null);
+                return;
+            }
+            pulsar.getPulsarResources().getNamespaceResources()
+                    .setAsync(path(POLICIES, TopicName.get(topic).getNamespace()), p -> {
+                        p.auth_policies.getTopicAuthentication().remove(topic);
+                        return p;
+                    }).thenAccept(v -> {
+                        log.info("Successfully delete authentication policies for topic {}", topic);
+                        future.complete(null);
+                    }).exceptionally(ex1 -> {
+                        if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
+                            log.warn(
+                                    "Failed to delete authentication policies because of bad version. "
+                                            + "Retry to delete authentication policies for topic {}",
+                                    topic);
+                            deleteTopicAuthenticationWithRetry(topic, future, count - 1);
+                        } else {
+                            log.error("Failed to delete authentication policies for topic {}", topic, ex1);
+                            future.completeExceptionally(ex1);
+                        }
+                        return null;
+                    });
+        }).exceptionally(ex -> {
+            log.error("Failed to get policies for topic {}", topic, ex);
+            future.completeExceptionally(ex);
+            return null;
+        });
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
@@ -1046,7 +1107,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
-                String path = PulsarWebResource.path("clusters", cluster);
+                String path = path("clusters", cluster);
                 ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
                 ClientBuilder clientBuilder = PulsarClient.builder()
@@ -1121,7 +1182,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         return clusterAdmins.computeIfAbsent(cluster, key -> {
             try {
-                String path = PulsarWebResource.path("clusters", cluster);
+                String path = path("clusters", cluster);
                 ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
 
@@ -1219,6 +1280,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn(msg);
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            return;
+        }
+
+        if (isTransactionSystemTopic(topicName)) {
+            String msg = String.format("Can not create transaction system topic %s", topic);
+            log.warn(msg);
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+            topicFuture.completeExceptionally(new NotAllowedException(msg));
             return;
         }
 
@@ -1348,7 +1417,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             try {
                 policies = pulsar
-                        .getConfigurationCache().policiesCache().get(AdminResource.path(POLICIES,
+                        .getConfigurationCache().policiesCache().get(path(POLICIES,
                                 namespace.toString()));
                 String path = joinPath(LOCAL_POLICIES_ROOT, topicName.getNamespaceObject().toString());
                 localPolicies = pulsar().getLocalZkCacheService().policiesCache().get(path);
@@ -2569,7 +2638,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
         try {
             Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                            .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+                .get(path(POLICIES, topicName.getNamespace()));
+
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
                 return policies.get().autoTopicCreationOverride;
@@ -2602,7 +2672,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
         try {
             Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+                    .get(path(POLICIES, topicName.getNamespace()));
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
                 return policies.get().autoSubscriptionCreationOverride;
@@ -2642,7 +2712,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         Integer maxTopicsPerNamespace;
         try {
             maxTopicsPerNamespace = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()))
+                    .get(path(POLICIES, topicName.getNamespace()))
                     .map(p -> p.max_topics_per_namespace)
                     .orElse(null);
 

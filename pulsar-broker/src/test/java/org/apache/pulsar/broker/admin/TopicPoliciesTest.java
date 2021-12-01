@@ -32,8 +32,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +48,7 @@ import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -59,6 +62,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -1508,6 +1512,44 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testDisableSubscribeRate() throws Exception {
+        assertEquals(pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(), 0);
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        admin.lookups().lookupTopic(persistenceTopic);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(persistenceTopic).get().get();
+        Field field = PersistentTopic.class.getDeclaredField("subscribeRateLimiter");
+        field.setAccessible(true);
+        Optional<SubscribeRateLimiter> limiter = (Optional<SubscribeRateLimiter>) field.get(topic);
+        // sub rate limiter should be null by default
+        assertFalse(limiter.isPresent());
+
+        // Enable / Disable subscribe rate in namespace-level
+        final SubscribeRate subscribeRate = new SubscribeRate(1, 100);
+        admin.namespaces().setSubscribeRate(myNamespace, subscribeRate);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertTrue(limiter1.isPresent());
+        });
+        admin.namespaces().removeSubscribeRate(myNamespace);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertFalse(limiter2.isPresent());
+        });
+
+        // Enable / Disable subscribe rate in topic-level
+        admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertTrue(limiter1.isPresent());
+        });
+        admin.topics().removeSubscribeRate(persistenceTopic);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertFalse(limiter2.isPresent());
+        });
+    }
+
+    @Test
     public void testGetSetSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
 
@@ -1655,7 +1697,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
-
+        pulsarClient.newProducer().topic(persistenceTopic).create().close();
         SubscribeRate subscribeRate = new SubscribeRate(2, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, persistenceTopic);
         admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);
@@ -2473,6 +2515,83 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testPoliciesCanBeDeletedWithTopic() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        final String topic2 = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        pulsarClient.newProducer().topic(topic2).create().close();
+
+        Awaitility.await().untilAsserted(() -> {
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNull();
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic2))).isNull();
+        });
+        // Init Topic Policies. Send 4 messages in a row, there should be only 2 messages left after compression
+        admin.topics().setMaxConsumersPerSubscription(topic, 1);
+        admin.topics().setMaxConsumersPerSubscription(topic2, 2);
+        admin.topics().setMaxConsumersPerSubscription(topic, 3);
+        admin.topics().setMaxConsumersPerSubscription(topic2, 4);
+        Awaitility.await().untilAsserted(() -> {
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic2))).isNotNull();
+        });
+        String topicPoliciesTopic = "persistent://" + myNamespace + "/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicPoliciesTopic).get().get();
+        // Trigger compaction and make sure it is finished.
+        persistentTopic.triggerCompaction();
+        Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
+        field.setAccessible(true);
+        CompletableFuture<Long> future = (CompletableFuture<Long>)field.get(persistentTopic);
+        Awaitility.await().untilAsserted(() -> assertTrue(future.isDone()));
+
+        Consumer consumer = pulsarClient.newConsumer()
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .readCompacted(true)
+                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+        int count = 0;
+        while (true) {
+            Message message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                count++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+        consumer.close();
+        assertEquals(count, 2);
+
+        // Delete topic, there should be only 1 message left after compression
+        admin.topics().delete(topic, true);
+
+        Awaitility.await().untilAsserted(() ->
+                assertNull(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))));
+        persistentTopic.triggerCompaction();
+        field = PersistentTopic.class.getDeclaredField("currentCompaction");
+        field.setAccessible(true);
+        CompletableFuture<Long> future2 = (CompletableFuture<Long>)field.get(persistentTopic);
+        Awaitility.await().untilAsserted(() -> assertTrue(future2.isDone()));
+
+        consumer = pulsarClient.newConsumer()
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .readCompacted(true)
+                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+        count = 0;
+        while (true) {
+            Message message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                count++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+        consumer.close();
+        assertEquals(count, 1);
+
+    }
+
+    @Test
     public void testPolicyIsDeleteTogetherAutomatically() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -2514,4 +2633,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         });
     }
 
+    @Test
+    public void testLoopCreateAndDeleteTopicPolicies() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+
+        int n = 0;
+        while (n < 2) {
+            n++;
+            pulsarClient.newProducer().topic(topic).create().close();
+            Awaitility.await().untilAsserted(() -> {
+                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNull();
+            });
+
+            admin.topics().setMaxConsumersPerSubscription(topic, 1);
+            Awaitility.await().untilAsserted(() -> {
+                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
+            });
+
+            admin.topics().delete(topic);
+            Awaitility.await().untilAsserted(() -> {
+                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNull();
+            });
+        }
+    }
 }

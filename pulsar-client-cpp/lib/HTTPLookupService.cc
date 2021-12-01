@@ -52,9 +52,9 @@ HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
     : executorProvider_(std::make_shared<ExecutorServiceProvider>(NUMBER_OF_LOOKUP_THREADS)),
       authenticationPtr_(authData),
       lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()),
+      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()),
       isUseTls_(clientConfiguration.isUseTls()),
       tlsAllowInsecure_(clientConfiguration.isTlsAllowInsecureConnection()),
-      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()),
       tlsValidateHostname_(clientConfiguration.isValidateHostName()) {
     if (lookupUrl[lookupUrl.length() - 1] == '/') {
         // Remove trailing '/'
@@ -190,10 +190,7 @@ Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::st
     AuthenticationDataPtr authDataContent;
     Result authResult = authenticationPtr_->getAuthData(authDataContent);
     if (authResult != ResultOk) {
-        LOG_ERROR(
-            "All Authentication methods should have AuthenticationData and return true on getAuthData for "
-            "url "
-            << completeUrl);
+        LOG_ERROR("Failed to getAuthData: " << authResult);
         curl_easy_cleanup(handle);
         return authResult;
     }

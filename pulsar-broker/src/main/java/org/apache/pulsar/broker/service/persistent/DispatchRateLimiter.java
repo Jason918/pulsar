@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import java.util.Optional;
@@ -325,12 +324,13 @@ public class DispatchRateLimiter {
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
         final String path = path(POLICIES, namespace.toString());
-        Optional<Policies> policies = Optional.empty();
+        Optional<Policies >policies = Optional.empty();
         try {
             ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
             if (configurationCacheService != null) {
                 policies = configurationCacheService.policiesCache().getAsync(path)
-                        .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                    .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(),
+                        TimeUnit.SECONDS);
             }
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);

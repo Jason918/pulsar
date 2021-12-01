@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Map;
@@ -98,15 +99,16 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 // make up for at least the minimum throughput to offload
 
                 loadData.getBundleData().entrySet().stream()
-                        .filter(e -> localData.getBundles().contains(e.getKey()))
-                        .map((e) -> {
-                            // Map to throughput value
-                            // Consider short-term byte rate to address system resource burden
-                            String bundle = e.getKey();
-                            BundleData bundleData = e.getValue();
-                            TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                            double throughput = shortTermData.getMsgThroughputIn() + shortTermData
-                                    .getMsgThroughputOut();
+                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(e.getKey()).matches()
+                            && localData.getBundles().contains(e.getKey()))
+                    .map((e) -> {
+                        // Map to throughput value
+                        // Consider short-term byte rate to address system resource burden
+                        String bundle = e.getKey();
+                        BundleData bundleData = e.getValue();
+                        TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                        double throughput = shortTermData.getMsgThroughputIn() + shortTermData
+                                .getMsgThroughputOut();
                     return Pair.of(bundle, throughput);
                 }).filter(e -> {
                     // Only consider bundles that were not already unloaded recently

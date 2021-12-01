@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
@@ -95,6 +96,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -119,12 +121,17 @@ import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -151,6 +158,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
+    private MetadataStoreExtended store;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
     private ConfigurationCacheService configCacheService;
@@ -208,6 +216,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
+
+        store = new ZKMetadataStore(mockZk);
+        PulsarResources pulsarResources = spy(new PulsarResources(store, store));
+        NamespaceResources nsr = spy(new NamespaceResources(store, 30));
+        doReturn(nsr).when(pulsarResources).getNamespaceResources();
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -1829,6 +1843,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testCompactorSubscription() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        when(compactedTopic.newCompactedLedger(any(Position.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(mock(CompactedTopicContext.class)));
         PersistentSubscription sub = new CompactorSubscription(topic, compactedTopic,
                                                                Compactor.COMPACTION_SUBSCRIPTION,
                                                                cursorMock);
@@ -2186,6 +2202,48 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         producer.disconnect();
         verify(serverCnx).execute(any());
     };
+
+    @Test
+    public void testKeySharedMetadataExposedToStats() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub1 = new PersistentSubscription(topic, "key-shared-stats1", cursorMock, false);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "key-shared-stats2", cursorMock, false);
+        PersistentSubscription sub3 = new PersistentSubscription(topic, "key-shared-stats3", cursorMock, false);
+
+        Consumer consumer1 = new Consumer(sub1, SubType.Key_Shared, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT).setAllowOutOfOrderDelivery(false),
+                MessageId.latest);
+        sub1.addConsumer(consumer1);
+        consumer1.close();
+
+        SubscriptionStatsImpl stats1 = sub1.getStats(false, false);
+        assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
+        assertFalse(stats1.allowOutOfOrderDelivery);
+
+        Consumer consumer2 = new Consumer(sub2, SubType.Key_Shared, topic.getName(), 2, 0, "Cons2", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT).setAllowOutOfOrderDelivery(true),
+                MessageId.latest);
+        sub2.addConsumer(consumer2);
+        consumer2.close();
+
+        SubscriptionStatsImpl stats2 = sub2.getStats(false, false);
+        assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
+        assertTrue(stats2.allowOutOfOrderDelivery);
+
+        KeySharedMeta ksm =  new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
+                .setAllowOutOfOrderDelivery(false);
+        ksm.addHashRange().setStart(0).setEnd(65535);
+        Consumer consumer3 = new Consumer(sub3, SubType.Key_Shared, topic.getName(), 3, 0, "Cons3", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, ksm, MessageId.latest);
+        sub3.addConsumer(consumer3);
+        consumer3.close();
+
+        SubscriptionStatsImpl stats3 = sub3.getStats(false, false);
+        assertEquals(stats3.keySharedMode, "STICKY");
+        assertFalse(stats3.allowOutOfOrderDelivery);
+    }
 
     private ByteBuf getMessageWithMetadata(byte[] data) {
         MessageMetadata messageData = new MessageMetadata()

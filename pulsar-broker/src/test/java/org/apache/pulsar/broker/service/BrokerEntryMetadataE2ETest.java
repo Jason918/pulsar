@@ -28,11 +28,13 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.assertj.core.util.Sets;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -271,23 +273,5 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .subscriptionName(subscription)
                 .subscribe();
         consumer.getLastMessageId();
-    }
-
-    public void testGetLastIndex() throws Exception {
-        final String topic = "persistent://prop/ns-abc/topic-testGetLastIndex";
-
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
-
-        Assert.assertEquals(admin.topics().getInternalStats(topic).lastIndex, -1);
-        producer.newMessage().value("hello".getBytes()).send();
-
-        Assert.assertEquals(admin.topics().getInternalStats(topic).lastIndex, 0);
-
-        producer.newMessage().value("hello".getBytes()).send();
-        Assert.assertEquals(admin.topics().getInternalStats(topic).lastIndex, 1);
     }
 }

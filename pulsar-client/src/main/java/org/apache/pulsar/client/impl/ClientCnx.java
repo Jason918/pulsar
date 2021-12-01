@@ -534,7 +534,9 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
         if (log.isDebugEnabled()) {
-            log.debug("Received Broker lookup response: {}", lookupResult.getResponse());
+            CommandLookupTopicResponse.LookupType response =
+                    lookupResult.hasResponse() ? lookupResult.getResponse() : null;
+            log.debug("Received Broker lookup response: {} {}", lookupResult.getRequestId(), response);
         }
 
         long requestId = lookupResult.getRequestId();
@@ -569,7 +571,11 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
         if (log.isDebugEnabled()) {
-            log.debug("Received Broker Partition response: {}", lookupResult.getPartitions());
+            CommandPartitionedTopicMetadataResponse.LookupType response =
+                    lookupResult.hasResponse() ? lookupResult.getResponse() : null;
+            int partitions = lookupResult.hasPartitions() ? lookupResult.getPartitions() : -1;
+            log.debug("Received Broker Partition response: {} {} {}", lookupResult.getRequestId(), response,
+                    partitions);
         }
 
         long requestId = lookupResult.getRequestId();
@@ -688,6 +694,10 @@ public class ClientCnx extends PulsarHandler {
         if (error.getError() == ServerError.AuthenticationError) {
             connectionFuture.completeExceptionally(new PulsarClientException.AuthenticationException(error.getMessage()));
             log.error("{} Failed to authenticate the client", ctx.channel());
+        }
+        if (error.getError() == ServerError.NotAllowedError) {
+            log.error("Get not allowed error, {}", error.getMessage());
+            connectionFuture.completeExceptionally(new PulsarClientException.NotAllowedException(error.getMessage()));
         }
         CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {

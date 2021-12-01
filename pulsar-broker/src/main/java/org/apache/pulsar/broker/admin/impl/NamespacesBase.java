@@ -391,7 +391,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName).join();
+            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName).
+                    get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
@@ -571,7 +572,8 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             for (String topic : topics) {
                 NamespaceBundle topicBundle = pulsar().getNamespaceService()
                         .getBundle(TopicName.get(topic));
@@ -2355,8 +2357,11 @@ public abstract class NamespacesBase extends AdminResource {
         Policies policies = getNamespacePolicies(namespaceName);
         SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
+                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            }
         }
         return schemaCompatibilityStrategy;
     }
@@ -2386,10 +2391,15 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaCompatibilityStrategy");
     }
 
-    protected boolean internalGetSchemaValidationEnforced() {
+    protected boolean internalGetSchemaValidationEnforced(boolean applied) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).schema_validation_enforced;
+        boolean schemaValidationEnforced = getNamespacePolicies(namespaceName).schema_validation_enforced;
+        if (!schemaValidationEnforced && applied) {
+            return pulsar().getConfiguration().isSchemaValidationEnforced();
+        } else {
+            return schemaValidationEnforced;
+        }
     }
 
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {

@@ -40,6 +40,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -541,6 +542,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxTopicsPerNamespace = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections in the broker. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnections = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnectionsPerIp = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema'"
+            + " of namespace policy. This is enabled by default."
+    )
+    private boolean isAllowAutoUpdateSchemaEnabled = true;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -746,6 +767,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will backoff the batch size to this minimum number."
     )
     private int dispatcherMinReadBatchSize = 1;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff initial time in milliseconds. By default it is 15s."
+    )
+    private int dispatcherReadFailureBackoffInitialTimeInMs = 15000;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff max time in milliseconds. By default it is 60s."
+    )
+    private int dispatcherReadFailureBackoffMaxTimeInMs = 60000;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff mandatory stop time in milliseconds. By default it is 0s."
+    )
+    private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
 
     @FieldContext(
         dynamic = true,
@@ -975,6 +1017,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
     private boolean systemTopicEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy to use for system topics"
+    )
+    private SchemaCompatibilityStrategy systemTopicSchemaCompatibilityStrategy =
+            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1903,11 +1952,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "   if you enable this setting, it will cause non-java clients failed to produce."
     )
     private boolean isSchemaValidationEnforced = false;
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The schema storage implementation used by this broker"
     )
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The list compatibility checkers to be used in schema registry"
@@ -1917,6 +1968,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
             "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
     );
+
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy in broker level. If this config in namespace policy is `UNDEFINED`"
+                    + ", schema compatibility strategy check will use it in broker level."
+    )
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.UNDEFINED;
 
     /**** --- WebSocket --- ****/
     @FieldContext(
@@ -1994,6 +2052,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     " Locking is used for fetching the status so default to false."
     )
     private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable splitting topic and partition label in Prometheus.\n" +
+                    " If enabled, a topic name will split into 2 parts, one is topic name without partition index,\n" +
+                    " another one is partition index, e.g. (topic=xxx, partition=0).\n" +
+                    " If the topic is a non-partitioned topic, -1 will be used for the partition index.\n" +
+                    " If disabled, one label to represent the topic and partition, e.g. (topic=xxx-partition-0)\n" +
+                    " Default is false."
+    )
+    private boolean splitTopicAndPartitionLabelInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(

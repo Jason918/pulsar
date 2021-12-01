@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.broker.PulsarService.isTransactionInternalName;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.util.Codec.decode;
@@ -133,6 +134,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,7 +167,8 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             String path = String.format("/managed-ledgers/%s/%s", namespaceName.toString(), domain());
             for (String topic : getLocalPolicies().getChildren(path)) {
-                if (domain().equals(TopicDomain.persistent.toString())) {
+                if (domain().equals(TopicDomain.persistent.toString())
+                        && !isTransactionInternalName(TopicName.get(topic))) {
                     topics.add(TopicName.get(domain(), namespaceName, decode(topic)).toString());
                 }
             }
@@ -197,6 +200,13 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(e);
         }
         return getPartitionedTopicList(TopicDomain.getEnum(domain()));
+    }
+
+    protected void validateCreateTopic(TopicName topicName) {
+        if (isTransactionInternalName(topicName)) {
+            log.warn("Try to create a topic in the system topic format! {}", topicName);
+            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
+        }
     }
 
     protected Map<String, Set<AuthAction>> internalGetPermissionsOnTopic() {
@@ -273,7 +283,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
             log.info("[{}] Successfully granted access for role {}: {} - topic {}", clientAppId(), role, actions,
                     topicUri);
-        } catch (org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException e) {
+        } catch (MetadataStoreException.NotFoundException e) {
             log.warn("[{}] Failed to grant permissions on topic {}: Namespace does not exist", clientAppId(), topicUri);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (Exception e) {
@@ -587,42 +597,72 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                             });
                 }
-                for (int i = 0; i < numPartitions; i++) {
-                    TopicName topicNamePartition = topicName.getPartition(i);
-                    try {
-                        pulsar().getAdminClient().topics()
-                                .deleteAsync(topicNamePartition.toString(), force)
-                                .whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        if (ex instanceof NotFoundException) {
-                                            // if the sub-topic is not found, the client might not have called create
-                                            // producer or it might have been deleted earlier,
-                                            //so we ignore the 404 error.
-                                            // For all other exception,
-                                            //we fail the delete partition method even if a single
-                                            // partition is failed to be deleted
-                                            if (log.isDebugEnabled()) {
-                                                log.debug("[{}] Partition not found: {}", clientAppId(),
-                                                        topicNamePartition);
+                // delete authentication policies of the partitioned topic
+                CompletableFuture<Void> deleteAuthFuture = new CompletableFuture<>();
+                pulsar().getPulsarResources().getNamespaceResources()
+                    .setAsync(path(POLICIES, topicName.getNamespace()), p -> {
+                        for (int i = 0; i < numPartitions; ++i) {
+                            p.auth_policies.getTopicAuthentication().remove(topicName.getPartition(i).toString());
+                        }
+                        p.auth_policies.getTopicAuthentication().remove(topicName.toString());
+                        return p;
+                    }).thenAccept(v -> {
+                        log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
+                        deleteAuthFuture.complete(null);
+                    }).exceptionally(ex -> {
+                        if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                            log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
+                            deleteAuthFuture.complete(null);
+                        } else {
+                            log.error("Failed to delete authentication policies for partitioned topic {}",
+                                        topicName, ex);
+                            deleteAuthFuture.completeExceptionally(ex);
+                        }
+                        return null;
+                    });
+
+                deleteAuthFuture.whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        future.completeExceptionally(ex);
+                        return;
+                    }
+                    for (int i = 0; i < numPartitions; i++) {
+                        TopicName topicNamePartition = topicName.getPartition(i);
+                        try {
+                            pulsar().getAdminClient().topics()
+                                    .deleteAsync(topicNamePartition.toString(), force)
+                                    .whenComplete((r1, ex1) -> {
+                                        if (ex1 != null) {
+                                            if (ex1 instanceof NotFoundException) {
+                                                // if the sub-topic is not found, the client might not have called
+                                                // create producer or it might have been deleted earlier,
+                                                //so we ignore the 404 error.
+                                                // For all other exception,
+                                                //we fail the delete partition method even if a single
+                                                // partition is failed to be deleted
+                                                if (log.isDebugEnabled()) {
+                                                    log.debug("[{}] Partition not found: {}", clientAppId(),
+                                                            topicNamePartition);
+                                                }
+                                            } else {
+                                                log.error("[{}] Failed to delete partition {}", clientAppId(),
+                                                        topicNamePartition, ex1);
+                                                future.completeExceptionally(ex1);
+                                                return;
                                             }
                                         } else {
-                                            log.error("[{}] Failed to delete partition {}", clientAppId(),
-                                                    topicNamePartition, ex);
-                                            future.completeExceptionally(ex);
-                                            return;
+                                            log.info("[{}] Deleted partition {}", clientAppId(), topicNamePartition);
                                         }
-                                    } else {
-                                        log.info("[{}] Deleted partition {}", clientAppId(), topicNamePartition);
-                                    }
-                                    if (count.decrementAndGet() == 0) {
-                                        future.complete(null);
-                                    }
-                                });
-                    } catch (Exception e) {
-                        log.error("[{}] Failed to delete partition {}", clientAppId(), topicNamePartition, e);
-                        future.completeExceptionally(e);
+                                        if (count.decrementAndGet() == 0) {
+                                            future.complete(null);
+                                        }
+                                    });
+                        } catch (Exception e) {
+                            log.error("[{}] Failed to delete partition {}", clientAppId(), topicNamePartition, e);
+                            future.completeExceptionally(e);
+                        }
                     }
-                }
+                });
             } else {
                 future.complete(null);
             }
@@ -2686,7 +2726,7 @@ public class PersistentTopicsBase extends AdminResource {
         // note that we do not want to load the topic and hence skip authorization check
         try {
             namespaceResources().get(path(POLICIES, namespaceName.toString()));
-        } catch (org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException e) {
+        } catch (MetadataStoreException.NotFoundException e) {
             log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (Exception e) {
@@ -3594,7 +3634,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            throw new RestException(e);
+            if (e.getCause() instanceof NotAllowedException) {
+                throw new RestException(Status.BAD_REQUEST, e.getCause());
+            }
+            throw new RestException(e.getCause());
         }
     }
 
