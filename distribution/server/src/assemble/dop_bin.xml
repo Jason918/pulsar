@@ -101,7 +101,6 @@
 
       <excludes>
         <exclude>org.projectlombok:lombok</exclude>
-        <exclude>org.apache.pulsar:pulsar-functions-*</exclude>
         <exclude>*:tar.gz</exclude>
       </excludes>
     </dependencySet>
