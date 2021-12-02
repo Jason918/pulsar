@@ -45,6 +45,10 @@ fi
 OUTPUT_PATH=${CURDIR}/output
 mkdir -p ${OUTPUT_PATH}
 
-tree -h distribution/
+if [ ! -d "distribution/server/target/" ];then
+  echo "==== distribution/server/target not exist ===="
+  exit 1
+fi
+tree -h distribution/server/target
 cp distribution/server/target/apache-pulsar-*-bin.tar.gz  ${OUTPUT_PATH}
 cp -rf docker-build/* ${OUTPUT_PATH}
