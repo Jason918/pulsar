@@ -2020,7 +2020,7 @@ flexible messaging model and an intuitive client API.</description>
       </properties>
       <modules>
         <module>buildtools</module>
-        <module>testmocks</module>
+<!--        <module>testmocks</module>-->
         <module>managed-ledger</module>
         <module>pulsar-common</module>
         <module>pulsar-broker-common</module>
@@ -2055,11 +2055,11 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-messagecrypto-bc</module>
 
         <!-- all these modules should be put at the end in this exact sequence -->
-        <module>distribution</module>
+<!--        <module>distribution</module>-->
         <module>pulsar-metadata</module>
 
         <!-- package management releated modules (begin) -->
-        <module>pulsar-package-management</module>
+<!--        <module>pulsar-package-management</module>-->
         <!-- package management releated modules (end) -->
       </modules>
     </profile>
