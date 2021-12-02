@@ -45,6 +45,5 @@ fi
 OUTPUT_PATH=${CURDIR}/output
 mkdir -p ${OUTPUT_PATH}
 
-tree -h distribution/
 cp distribution/server/target/apache-pulsar-*-bin.tar.gz  ${OUTPUT_PATH}
 cp -rf docker-build/* ${OUTPUT_PATH}
