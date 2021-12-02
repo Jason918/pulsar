@@ -184,70 +184,6 @@
       <artifactId>simpleclient_log4j2</artifactId>
     </dependency>
 
-    <!-- function examples -->
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-api-examples</artifactId>
-      <version>${project.version}</version>
-      <!-- make sure the api examples are compiled before assembly -->
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-worker</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-        <!-- bouncy-castle-bc already contains this-->
-        <exclusion>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.thrift</groupId>
-          <artifactId>libthrift</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- runtime-all -->
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-runtime-all</artifactId>
-      <version>${project.version}</version>
-      <!-- make sure the api examples are compiled before assembly -->
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- local-runner -->
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-local-runner-original</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
     <!-- grpc -->
     <dependency>
       <groupId>io.grpc</groupId>
@@ -356,6 +292,70 @@
     <profile>
       <id>core-modules</id>
       <!-- allow building the distribution without pulsar-presto-distribution when core-modules is active -->
+      <dependencies>
+        <!-- runtime-all -->
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-runtime-all</artifactId>
+          <version>${project.version}</version>
+          <!-- make sure the api examples are compiled before assembly -->
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <!-- local-runner -->
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-local-runner-original</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>io.grpc</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <!-- function examples -->
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-api-examples</artifactId>
+          <version>${project.version}</version>
+          <!-- make sure the api examples are compiled before assembly -->
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-worker</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>io.grpc</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <!-- bouncy-castle-bc already contains this-->
+            <exclusion>
+              <groupId>org.bouncycastle</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.thrift</groupId>
+              <artifactId>libthrift</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>dop</id>
@@ -370,6 +370,68 @@
       </activation>
       <!-- depend on pulsar-presto-distribution by default, unless core-modules profile is active -->
       <dependencies>
+        <!-- runtime-all -->
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-runtime-all</artifactId>
+          <version>${project.version}</version>
+          <!-- make sure the api examples are compiled before assembly -->
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <!-- local-runner -->
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-local-runner-original</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>io.grpc</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <!-- function examples -->
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-api-examples</artifactId>
+          <version>${project.version}</version>
+          <!-- make sure the api examples are compiled before assembly -->
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-functions-worker</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>io.grpc</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <!-- bouncy-castle-bc already contains this-->
+            <exclusion>
+              <groupId>org.bouncycastle</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.thrift</groupId>
+              <artifactId>libthrift</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>pulsar-presto-distribution</artifactId>
