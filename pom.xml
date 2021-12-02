@@ -2055,7 +2055,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-messagecrypto-bc</module>
 
         <!-- all these modules should be put at the end in this exact sequence -->
-<!--        <module>distribution</module>-->
+        <module>distribution</module>
         <module>pulsar-metadata</module>
 
         <!-- package management releated modules (begin) -->
