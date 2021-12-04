@@ -531,7 +531,8 @@ public class ClientCnx extends PulsarHandler {
             ProducerResponse pr = new ProducerResponse(success.getProducerName(),
                     success.getLastSequenceId(),
                     success.getSchemaVersion(),
-                    success.hasTopicEpoch() ? Optional.of(success.getTopicEpoch()) : Optional.empty());
+                    success.hasTopicEpoch() ? Optional.of(success.getTopicEpoch()) : Optional.empty(),
+                    success.hasMaxMessageSize() ? success.getMaxMessageSize() : null);
             requestFuture.complete(pr);
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());

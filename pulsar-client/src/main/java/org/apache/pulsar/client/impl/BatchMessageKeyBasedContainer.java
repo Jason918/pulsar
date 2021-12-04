@@ -72,6 +72,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             part.maxBatchSize = maxBatchSize;
             part.topicName = topicName;
             part.producerName = producerName;
+            part.producer = producer;
             batches.putIfAbsent(key, part);
 
             if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
@@ -120,9 +121,9 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata, keyedBatch.getCompressedBatchMetadataAndPayload());
-        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+        if (encryptedPayload.readableBytes() > producer.getMaxMessageSize()) {
             keyedBatch.discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                    "Message size is bigger than " + producer.getMaxMessageSize() + " bytes"));
             return null;
         }
 
@@ -197,6 +198,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         private int maxBatchSize;
         private String topicName;
         private String producerName;
+        private ProducerImpl producer;
 
         // keep track of callbacks for individual messages being published in a batch
         private SendCallback firstCallback;
@@ -224,7 +226,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             if (messages.size() == 0) {
                 sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
                 batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+                        .buffer(Math.min(maxBatchSize, producer.getMaxMessageSize()));
                 firstCallback = callback;
             }
             if (previousCallback != null) {

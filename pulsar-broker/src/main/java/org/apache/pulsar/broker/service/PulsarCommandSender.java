@@ -38,11 +38,12 @@ public interface PulsarCommandSender {
 
     void sendErrorResponse(long requestId, ServerError error, String message);
 
-    void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion);
+    void sendProducerSuccessResponse(long requestId, String producerName, SchemaVersion schemaVersion,
+                                     Integer maxMessageSize);
 
     void sendProducerSuccessResponse(long requestId, String producerName, long lastSequenceId,
                                      SchemaVersion schemaVersion, Optional<Long> topicEpoch,
-                                     boolean isProducerReady);
+                                     boolean isProducerReady, Integer maxMessageSize);
 
     void sendSendReceiptResponse(long producerId, long sequenceId, long highestId, long ledgerId,
                                  long entryId);

@@ -1164,7 +1164,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.info("[{}] Producer with the same id is already created:"
                             + " producerId={}, producer={}", remoteAddress, producerId, producer);
                     commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
-                            producer.getSchemaVersion());
+                            producer.getSchemaVersion(),
+                            producer.getTopic().getHierarchyTopicPolicies().getTopicMaxMessageSize().get());
                     return null;
                 } else {
                     // There was an early request to create a producer with same producerId.
@@ -1297,7 +1298,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.info("[{}] Created new producer: {}", remoteAddress, producer);
                     commandSender.sendProducerSuccessResponse(requestId, producerName,
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
-                            newTopicEpoch, true /* producer is ready now */);
+                            newTopicEpoch, true /* producer is ready now */,
+                            topic.getHierarchyTopicPolicies().getTopicMaxMessageSize().get());
                     return;
                 } else {
                     // The producer's future was completed before by
@@ -1336,7 +1338,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
                 commandSender.sendProducerSuccessResponse(requestId, producerName,
                         producer.getLastSequenceId(), producer.getSchemaVersion(),
-                        Optional.empty(), false/* producer is not ready now */);
+                        Optional.empty(), false/* producer is not ready now */,
+                        topic.getHierarchyTopicPolicies().getTopicMaxMessageSize().get());
             }
         });
     }

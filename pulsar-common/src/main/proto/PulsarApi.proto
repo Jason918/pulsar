@@ -638,6 +638,8 @@ message CommandProducerSuccess {
     // for creating the producer. Instead it will wait indefinitely until it gets
     // a subsequent  `CommandProducerSuccess` with `producer_ready==true`.
     optional bool producer_ready = 6 [default = true];
+    
+    optional int32 max_message_size = 7;
 }
 
 message CommandError {

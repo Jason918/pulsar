@@ -152,6 +152,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private boolean errorState;
 
+    private Integer topicMaxMessageSize;
+
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
@@ -429,14 +431,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
-            if (compressedSize > ClientCnx.getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
+            if (compressedSize > getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
                 compressedPayload.release();
                 String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
                                            ? "Compressed"
                                            : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
                     format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds %d bytes",
-                        producerName, topic, compressedStr, compressedSize, ClientCnx.getMaxMessageSize()));
+                        producerName, topic, compressedStr, compressedSize, getMaxMessageSize()));
                 completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
                 return;
             }
@@ -458,8 +460,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         // send in chunks
         int totalChunks = canAddToBatch(msg) ? 1
-                : Math.max(1, compressedPayload.readableBytes()) / ClientCnx.getMaxMessageSize()
-                        + (Math.max(1, compressedPayload.readableBytes()) % ClientCnx.getMaxMessageSize() == 0 ? 0 : 1);
+                : Math.max(1, compressedPayload.readableBytes()) / getMaxMessageSize()
+                        + (Math.max(1, compressedPayload.readableBytes()) % getMaxMessageSize() == 0 ? 0 : 1);
         // chunked message also sent individually so, try to acquire send-permits
         for (int i = 0; i < (totalChunks - 1); i++) {
             if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
@@ -480,9 +482,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
-                            readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
+                            readStartIndex, getMaxMessageSize(), compressedPayload, compressed,
                             compressedPayload.readableBytes(), uncompressedSize, callback);
-                    readStartIndex = ((chunkId + 1) * ClientCnx.getMaxMessageSize());
+                    readStartIndex = ((chunkId + 1) * getMaxMessageSize());
                 }
             }
         } catch (PulsarClientException e) {
@@ -1428,7 +1430,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             log.info("[{}] [{}] Producer epoch is {}", topic, producerName, response.getTopicEpoch());
                         }
                         topicEpoch = response.getTopicEpoch();
-
+                        topicMaxMessageSize = response.getMaxMessageSize();
 
                         if (this.producerName == null) {
                             this.producerName = producerName;
@@ -1915,6 +1917,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstMsg.createdAt);
         }
         return 0L;
+    }
+
+    public int getMaxMessageSize() {
+        if (topicMaxMessageSize == null || topicMaxMessageSize <= 0) {
+            return ClientCnx.getMaxMessageSize();
+        }
+        return Math.min(topicMaxMessageSize, ClientCnx.getMaxMessageSize());
     }
 
     public String getConnectionId() {

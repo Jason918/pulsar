@@ -72,7 +72,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
                 this.firstCallback = callback;
                 batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+                        .buffer(Math.min(maxBatchSize, producer.getMaxMessageSize()));
                 if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
                     currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
                 }
@@ -186,9 +186,9 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     @Override
     public OpSendMsg createOpSendMsg() throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
-        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+        if (encryptedPayload.readableBytes() > producer.getMaxMessageSize()) {
             discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                    "Message size is bigger than " + producer.getMaxMessageSize() + " bytes"));
             return null;
         }
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
