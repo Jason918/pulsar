@@ -318,7 +318,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             String subscription = pair.getRight();
             try {
                 log.info("channelInactive begin close embeddedRpcs. topic={}, sub={}", topic, subscription);
-                service.getTopicIfExists(TopicName.get(topic).toString()).thenCompose(topicOptional -> {
+                service.getTopicIfExists(TopicName.get(topic).toString()).thenAccept(topicOptional -> {
                     if (!topicOptional.isPresent()) {
                         log.warn("channelInactive close embeddedRpcs. topic is not present now, topic={}", topic);
                     } else {
@@ -330,7 +330,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     + " sub={}", topic, subscription);
                         }
                     }
-                    return null;
                 }).getNow(null);
             } catch (Exception e) {
                 log.error("channelInactive close embeddedRpcs. deactivate error. topic={}, sub={}",
