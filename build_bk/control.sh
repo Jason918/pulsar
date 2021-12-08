@@ -75,6 +75,12 @@ function start() {
 
     if [[ ${SERVICE_NAME} == preview.preview-bookkeeper.dop.ddmq.didi.com ]]; then
       PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.preview.conf"
+    elif [[ ${SERVICE_NAME} == level1.bookkeeper.dop.ddmq.didi.com ]]; then
+        PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.level1.conf"
+    elif [[ ${SERVICE_NAME} == level2.bookkeeper.dop.ddmq.didi.com ]]; then
+        PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.level2.conf"
+    elif [[ ${SERVICE_NAME} == level3.bookkeeper.dop.ddmq.didi.com ]]; then
+        PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.level3.conf"
     elif [[ ${SERVICE_NAME} == perf.bookkeeper.dop.ddmq.didi.com ]]; then
       PULSAR_BOOKKEEPER_CONF="${PULSAR_HOME}/conf/bk_conf/bookkeeper.perf.conf"
     fi
