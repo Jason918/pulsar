@@ -2017,6 +2017,7 @@ flexible messaging model and an intuitive client API.</description>
       <id>dop</id>
       <properties>
         <skipSourceReleaseAssembly>true</skipSourceReleaseAssembly>
+        <skipBuildDistribution>true</skipBuildDistribution>
       </properties>
       <modules>
         <module>buildtools</module>
