@@ -383,5 +383,14 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     public Timeout getPartitionsAutoUpdateTimeout() {
         return partitionsAutoUpdateTimeout;
     }
+    
+    /**
+     * Return the number of partitions per topic.
+     *
+     * @return the number of partitions per topic.
+     */
+    public int numPartitions() {
+        return PartitionedProducerImpl.this.topicMetadata.numPartitions();
+    }
 
 }
