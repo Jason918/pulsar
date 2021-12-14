@@ -21,7 +21,6 @@ FROM registry.xiaojukeji.com/didionline/sre-didi-centos7-base-v2:stable
 
 RUN mkdir /home/xiaoju/dop_tmp
 COPY apache-pulsar-dop-*.tar.gz /home/xiaoju/dop_tmp
-RUN rm -rf /usr/local/jdk*
 RUN rm -rf /usr/local/java
 ADD jdk-11.0.13_linux-x64_bin.tar.gz /usr/local/
 RUN ln -s /usr/local/jdk-11.0.13 /usr/local/java
