@@ -116,7 +116,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
                     log.debug("[{}] Peer doesn't support keep-alive", ctx.channel());
                 }
             }
-        }catch (Exception ex){
+        }catch (Throwable ex){
             log.error("handle keep alive exception:{}", ex);
         }
     }

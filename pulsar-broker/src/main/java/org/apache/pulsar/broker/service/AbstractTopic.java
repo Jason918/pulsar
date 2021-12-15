@@ -651,8 +651,10 @@ public abstract class AbstractTopic implements Topic {
     private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
             throws BrokerServiceException {
         boolean canOverwrite = false;
-        if (oldProducer.equals(newProducer) && !isUserProvidedProducerName(oldProducer)
-                && !isUserProvidedProducerName(newProducer) && newProducer.getEpoch() > oldProducer.getEpoch()) {
+        //todo oldProducer.equals(newProducer) && !isUserProvidedProducerName(oldProducer)
+        //                && !isUserProvidedProducerName(newProducer)  check
+        if (newProducer.getEpoch() > oldProducer.getEpoch()) {
+            log.warn("prouder:{}, over write old", newProducer.getProducerName());
             oldProducer.close(false);
             canOverwrite = true;
         }
