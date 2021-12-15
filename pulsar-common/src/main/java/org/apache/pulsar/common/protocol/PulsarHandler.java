@@ -89,30 +89,35 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     private void handleKeepAliveTimeout() {
-        if (!ctx.channel().isOpen()) {
-            return;
-        }
+        try {
+            if (!ctx.channel().isOpen()) {
+                log.warn("connection is not open:{}", ctx.channel());
+                return;
+            }
 
-        if (!isHandshakeCompleted()) {
-            log.warn("[{}] Pulsar Handshake was not completed within timeout, closing connection", ctx.channel());
-            ctx.close();
-        } else if (waitingForPingResponse && ctx.channel().config().isAutoRead()) {
-            // We were waiting for a response and another keep-alive just completed.
-            // If auto-read was disabled, it means we stopped reading from the connection, so we might receive the Ping
-            // response later and thus not enforce the strict timeout here.
-            log.warn("[{}] Forcing connection to close after keep-alive timeout", ctx.channel());
-            ctx.close();
-        } else if (getRemoteEndpointProtocolVersion() >= ProtocolVersion.v1.getValue()) {
-            // Send keep alive probe to peer only if it supports the ping/pong commands, added in v1
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Sending ping message", ctx.channel());
+            if (!isHandshakeCompleted()) {
+                log.warn("[{}] Pulsar Handshake was not completed within timeout, closing connection", ctx.channel());
+                ctx.close();
+            } else if (waitingForPingResponse && ctx.channel().config().isAutoRead()) {
+                // We were waiting for a response and another keep-alive just completed.
+                // If auto-read was disabled, it means we stopped reading from the connection, so we might receive the Ping
+                // response later and thus not enforce the strict timeout here.
+                log.warn("[{}] Forcing connection to close after keep-alive timeout", ctx.channel());
+                ctx.close();
+            } else if (getRemoteEndpointProtocolVersion() >= ProtocolVersion.v1.getValue()) {
+                // Send keep alive probe to peer only if it supports the ping/pong commands, added in v1
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Sending ping message", ctx.channel());
+                }
+                waitingForPingResponse = true;
+                ctx.writeAndFlush(Commands.newPing());
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Peer doesn't support keep-alive", ctx.channel());
+                }
             }
-            waitingForPingResponse = true;
-            ctx.writeAndFlush(Commands.newPing());
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Peer doesn't support keep-alive", ctx.channel());
-            }
+        }catch (Exception ex){
+            log.error("handle keep alive exception:{}", ex);
         }
     }
 
