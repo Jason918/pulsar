@@ -16,11 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+#include <pulsar/Version.h>
+#include <gtest/gtest.h>
 
-import com.fasterxml.jackson.annotation.JsonAlias;
-
-public abstract class BacklogQuotaMixIn {
-    @JsonAlias("limit")
-    private long limitSize;
+TEST(VersionTest, testMacro) {
+#ifdef PULSAR_VERSION
+    ASSERT_GE(PULSAR_VERSION, 2000000);
+    ASSERT_LE(PULSAR_VERSION, 999999999);
+#else
+    FAIL();
+#endif
 }

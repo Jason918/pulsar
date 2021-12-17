@@ -235,11 +235,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
     }
 
-    @Override
-    public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.consume);
-    }
-
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
                                                                        AuthenticationDataSource authenticationData,
                                                                        AuthAction authAction) {
@@ -547,7 +542,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case GET_TOPICS:
             case UNSUBSCRIBE:
-                isAuthorizedFuture = allowConsumeOpsAsync(namespaceName, role, authData);
+            case CLEAR_BACKLOG:
+                isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.consume);
                 break;
             default:
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
