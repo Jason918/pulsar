@@ -16,11 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_VERSION_H_
-#define LIB_VERSION_H_
 
-#ifndef _PULSAR_VERSION_
-#define _PULSAR_VERSION_ "1.17"
-#endif
+package org.apache.pulsar.common.util;
 
-#endif /* LIB_VERSION_H_ */
+import org.testng.annotations.Test;
+
+public class RunnablesTest {
+
+    @Test
+    public void shouldCatchAndLogException() {
+        Runnables.catchingAndLoggingThrowables(() -> {
+            throw new RuntimeException();
+        }).run();
+    }
+}
