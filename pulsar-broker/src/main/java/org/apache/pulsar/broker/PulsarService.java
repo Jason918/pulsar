@@ -1352,6 +1352,7 @@ public class PulsarService implements AutoCloseable {
                                 ? this.brokerServiceUrlTls : this.brokerServiceUrl);
                 conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                 conf.setTlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
+                conf.setMemoryLimitBytes(2 * 1024 * 1024 * 1024);//consistent with proxy
 
                 if (this.getConfiguration().isBrokerClientTlsEnabled()) {
                     if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
