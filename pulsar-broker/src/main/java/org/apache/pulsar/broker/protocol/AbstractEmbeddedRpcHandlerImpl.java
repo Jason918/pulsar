@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -39,6 +39,10 @@ public abstract class AbstractEmbeddedRpcHandlerImpl<ReqT extends EmbeddedRpcObj
 
     protected abstract RspT getResponseObject(ByteBuf payload);
 
+    /**
+     * Direct Memory Record:
+     * @return `response.getPayload()` come from PartitionReadResponse#getPayload; release at ServerCnx#handleEmbeddedRpcRequest
+     */
     @Override
     public CompletableFuture<Pair<CommandEmbeddedRpcResponse, ByteBuf>> handle(CommandEmbeddedRpcRequest request,
                                                                                ByteBuf buffer) {
@@ -56,6 +60,13 @@ public abstract class AbstractEmbeddedRpcHandlerImpl<ReqT extends EmbeddedRpcObj
         });
     }
 
+    /**
+     * Direct Memory Record:
+     *
+     * @param req   是堆内ByteBuf，无需释放。
+     *                 新生成的ByteBuf response come from ClientCnx#handleEmbeddedRpcResponse; release at com.xiaojukeji.carrera.dop.rpc.PartitionReadRpc#callAsync
+     * @return
+     */
     @Override
     public CompletableFuture<RspT> callRPCAsync(Consumer<?> consumer, ReqT req) {
         return consumer.embeddedRpcAsync(getCode(), req.getPayload())

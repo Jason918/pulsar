@@ -2373,6 +2373,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return possibleSendToDeadLetterTopicMessages;
     }
 
+    /**
+     * Direct Memory Record:
+     *
+     * @param requestPayload come from AbstractEmbeddedRpcHandlerImpl#callRPCAsync; 被包装在ByteBufPair embeddedRpcRequest; release at ClientCnx#sendEmbeddedRpcRequestWithRequestId
+     * 被包装在ByteBufPair由 PulsarByteBufAllocator.DEFAULT 分配
+     * 注意：requestPayload是堆内内存，由虚拟机管理回收；ByteBufPair 包装了1个堆内和一个直接内存。
+     * @return
+     */
     @Override
     public CompletableFuture<EmbeddedRpcResponse> embeddedRpcAsync(long code, ByteBuf requestPayload) {
         if (getState() == State.Closing || getState() == State.Closed) {

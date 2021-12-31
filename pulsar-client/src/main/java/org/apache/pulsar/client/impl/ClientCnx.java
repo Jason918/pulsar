@@ -709,6 +709,11 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    /**
+     * Direct Memory Record:
+     * @param buffer come from PulsarDecoder#channelRead; release at PulsarDecoder#channelRead
+     *               new create response, release at AbstractEmbeddedRpcHandlerImpl#callRPCAsync -> AbstractEmbeddedRpcHandlerImpl#getResponseObject
+     */
     @Override
     protected void handleEmbeddedRpcResponse(CommandEmbeddedRpcResponse embeddedRpcResponse, ByteBuf buffer) {
         long requestId = embeddedRpcResponse.getRequestId();
@@ -716,7 +721,7 @@ public class ClientCnx extends PulsarHandler {
                 (CompletableFuture<EmbeddedRpcResponse>) pendingRequests.remove(requestId);
         EmbeddedRpcResponseImpl response = new EmbeddedRpcResponseImpl();
         response.setResponseCode(embeddedRpcResponse.getResponseCode());
-        response.setPayload(buffer);
+        response.setPayload(buffer.retainedDuplicate());
         requestFuture.complete(response);
     }
 
@@ -866,6 +871,11 @@ public class ClientCnx extends PulsarHandler {
         return connectionFuture;
     }
 
+    /**
+     *
+     * @param embeddedRpcRequest come from ConsumerImpl#embeddedRpcAsync ; release at this method:ctx.writeAndFlush. 由Netty框架负责释放。
+     * @return
+     */
     public CompletableFuture<EmbeddedRpcResponse> sendEmbeddedRpcRequestWithRequestId(ByteBufPair embeddedRpcRequest,
                                                                                       long requestId) {
         TimedCompletableFuture<EmbeddedRpcResponse> future = new TimedCompletableFuture<>();

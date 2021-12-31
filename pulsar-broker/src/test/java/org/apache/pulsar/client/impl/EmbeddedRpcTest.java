@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import lombok.Data;
@@ -74,6 +75,7 @@ public class EmbeddedRpcTest extends BrokerTestBase {
         protected RpcResponse getResponseObject(ByteBuf payload) {
             RpcResponse rsp = new RpcResponse();
             rsp.parseFrom(payload);
+            ReferenceCountUtil.safeRelease(payload);
             return rsp;
         }
 

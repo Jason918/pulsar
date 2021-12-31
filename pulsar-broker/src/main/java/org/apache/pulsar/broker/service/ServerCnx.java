@@ -2277,7 +2277,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }));
     }
 
-
+    /**
+     * Direct Memory Record:
+     * `responseByteBufPair` come from AbstractEmbeddedRpcHandlerImpl#handle; release at this method: `ctx.writeAndFlush`
+     */
     @Override
     protected void handleEmbeddedRpcRequest(CommandEmbeddedRpcRequest embeddedRpcRequest, ByteBuf buffer) {
         long requestId = embeddedRpcRequest.getRequestId();
