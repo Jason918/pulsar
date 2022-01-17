@@ -421,7 +421,11 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 200, message = "Everything is OK"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public String version() throws Exception {
-        return PulsarVersion.getVersion();
+        return String.format("Version=%s\nGitSha=%s\nGitBranch=%s\nBuildTime=%s\n",
+                PulsarVersion.getVersion(),
+                PulsarVersion.getGitSha(),
+                PulsarVersion.getGitBranch(),
+                PulsarVersion.getBuildTime());
     }
 }
 
