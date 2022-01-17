@@ -2360,6 +2360,12 @@ public class PersistentTopicsBase extends AdminResource {
             }, null);
         } catch (NullPointerException npe) {
             asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
+        } catch (WebApplicationException exception) {
+            if (exception.getResponse().getStatus() != Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                        clientAppId(), ledgerId, entryId, topicName, exception);
+            }
+            asyncResponse.resume(exception);
         } catch (Exception exception) {
             log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
                     clientAppId(), ledgerId, entryId, topicName, exception);
@@ -2417,6 +2423,12 @@ public class PersistentTopicsBase extends AdminResource {
             });
         } catch (NullPointerException npe) {
             asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
+        } catch (WebApplicationException exception) {
+            if (exception.getResponse().getStatus() != Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                log.error("[{}] Failed to get message with index {} from {}",
+                        clientAppId(), index, topicName, exception);
+            }
+            asyncResponse.resume(exception);
         } catch (Exception exception) {
             log.error("[{}] Failed to get message with index {} from {}",
                     clientAppId(), index, topicName, exception);

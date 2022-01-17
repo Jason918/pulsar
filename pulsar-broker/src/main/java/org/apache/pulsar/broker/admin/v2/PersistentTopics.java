@@ -1585,8 +1585,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                     }
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get message ID by timestamp {} from {}",
-                            clientAppId(), timestamp, topicName, ex);
+                    if (!(ex instanceof WebApplicationException)
+                            || ((WebApplicationException) ex).getResponse().getStatus()
+                            != Response.Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        log.error("[{}] Failed to get message ID by timestamp {} from {}",
+                                clientAppId(), timestamp, topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
