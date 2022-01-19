@@ -33,4 +33,8 @@ public interface EmbeddedRpcResponse {
     void setPayload(ByteBuf payload);
 
     ByteBuf getPayload();
+
+    long getRequestId();
+
+    void setRequestId(long requestId);
 }

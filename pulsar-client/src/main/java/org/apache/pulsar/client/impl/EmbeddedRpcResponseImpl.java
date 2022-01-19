@@ -27,4 +27,5 @@ import org.apache.pulsar.client.api.EmbeddedRpcResponse;
 public class EmbeddedRpcResponseImpl implements EmbeddedRpcResponse {
     private long responseCode;
     private ByteBuf payload;
+    private long requestId;
 }

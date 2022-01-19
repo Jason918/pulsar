@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.EmbeddedRpcObject;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.CommandEmbeddedRpcRequest;
 import org.apache.pulsar.common.api.proto.CommandEmbeddedRpcResponse;
 
@@ -71,7 +72,24 @@ public abstract class AbstractEmbeddedRpcHandlerImpl<ReqT extends EmbeddedRpcObj
      */
     @Override
     public CompletableFuture<RspT> callRPCAsync(Consumer<?> consumer, ReqT req) {
+        long start = 0L;
+        String channel = "";
+        if (log.isDebugEnabled()) {
+            if (consumer instanceof ConsumerImpl) {
+                channel = ((ConsumerImpl<?>) consumer).getConnectionHandler().cnx().ctx().toString();
+            }
+            start = System.currentTimeMillis();
+            log.debug("EmbeddedRpcHandler callRPCAsync. req={}, channel={}", req, channel);
+        }
+
+        String finalChannel = channel;
+        long finalStart = start;
         return consumer.embeddedRpcAsync(getCode(), req.getPayload())
-                .thenApply(response -> getResponseObject(response.getPayload()));
+                .thenApply(response -> {
+                    log.debug("EmbeddedRpcHandler callRPCAsync response success."
+                                    + " req={}, channel={}, reqId={}, elapseMs={}",
+                            req, finalChannel, response.getRequestId(), System.currentTimeMillis() - finalStart);
+                    return getResponseObject(response.getPayload());
+                });
     }
 }

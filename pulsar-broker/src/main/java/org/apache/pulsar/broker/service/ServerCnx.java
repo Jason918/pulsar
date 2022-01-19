@@ -2299,7 +2299,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         embeddedRpcs.add(Pair.of(topic, subscription));
-        log.info("handle EmbeddedRpc with requestId={}", requestId);
+        log.debug("handle EmbeddedRpc with requestId={}", requestId);
         handler.handle(embeddedRpcRequest, buffer).thenAccept(responseByteBufPair ->
                 ctx.writeAndFlush(Commands.newEmbeddedRpcResponse(responseByteBufPair.getLeft(),
                 responseByteBufPair.getRight()))).exceptionally(throwable -> {
