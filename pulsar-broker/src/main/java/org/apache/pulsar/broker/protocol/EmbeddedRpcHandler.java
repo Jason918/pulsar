@@ -37,7 +37,7 @@ public interface EmbeddedRpcHandler<ReqT extends EmbeddedRpcObject, RspT extends
     String getName();
 
     //processor in server.
-    CompletableFuture<RspT> handleRPCAsync(String topic, String subscription, ReqT req);
+    CompletableFuture<RspT> handleRPCAsync(String topic, String subscription, ReqT req, long reqId);
 
     //client caller
     CompletableFuture<RspT> callRPCAsync(Consumer<?> consumer, ReqT req);

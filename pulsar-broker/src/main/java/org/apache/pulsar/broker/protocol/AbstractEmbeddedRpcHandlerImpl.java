@@ -53,7 +53,7 @@ public abstract class AbstractEmbeddedRpcHandlerImpl<ReqT extends EmbeddedRpcObj
         ReqT r = getRequestObject(buffer);
         long reqId = request.getRequestId();
 
-        return handleRPCAsync(request.getTopic(), request.getSubscription(), r).thenApply(response -> {
+        return handleRPCAsync(request.getTopic(), request.getSubscription(), r, reqId).thenApply(response -> {
             CommandEmbeddedRpcResponse cmdResponse = new CommandEmbeddedRpcResponse();
             cmdResponse.setResponseCode(0);
             cmdResponse.setRequestId(reqId);

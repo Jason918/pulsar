@@ -717,6 +717,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleEmbeddedRpcResponse(CommandEmbeddedRpcResponse embeddedRpcResponse, ByteBuf buffer) {
         long requestId = embeddedRpcResponse.getRequestId();
+        log.info("handle EmbeddedRpc with requestId={}", requestId);
         CompletableFuture<EmbeddedRpcResponse> requestFuture =
                 (CompletableFuture<EmbeddedRpcResponse>) pendingRequests.remove(requestId);
         EmbeddedRpcResponseImpl response = new EmbeddedRpcResponseImpl();
@@ -881,9 +882,10 @@ public class ClientCnx extends PulsarHandler {
         TimedCompletableFuture<EmbeddedRpcResponse> future = new TimedCompletableFuture<>();
         RequestType requestType = RequestType.EmbeddedRpc;
         pendingRequests.put(requestId, future);
-
+        log.info("send EmbeddedRpc with requestId={}", requestId);
         ctx.writeAndFlush(embeddedRpcRequest).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
+                log.info("send EmbeddedRpc fail with requestId={}", requestId);
                 CompletableFuture<?> newFuture = pendingRequests.remove(requestId);
                 if (newFuture != null && !newFuture.isDone()) {
                     log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
