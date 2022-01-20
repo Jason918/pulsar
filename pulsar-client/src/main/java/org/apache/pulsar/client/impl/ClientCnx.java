@@ -717,7 +717,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleEmbeddedRpcResponse(CommandEmbeddedRpcResponse embeddedRpcResponse, ByteBuf buffer) {
         long requestId = embeddedRpcResponse.getRequestId();
-        log.debug("handle EmbeddedRpc with requestId={}", requestId);
+        log.debug("handle EmbeddedRpcResponse with requestId={}", requestId);
         CompletableFuture<EmbeddedRpcResponse> requestFuture =
                 (CompletableFuture<EmbeddedRpcResponse>) pendingRequests.remove(requestId);
         EmbeddedRpcResponseImpl response = new EmbeddedRpcResponseImpl();

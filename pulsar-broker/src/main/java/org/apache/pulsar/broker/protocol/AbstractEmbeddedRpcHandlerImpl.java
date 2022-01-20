@@ -87,8 +87,9 @@ public abstract class AbstractEmbeddedRpcHandlerImpl<ReqT extends EmbeddedRpcObj
         return consumer.embeddedRpcAsync(getCode(), req.getPayload())
                 .thenApply(response -> {
                     log.debug("EmbeddedRpcHandler callRPCAsync response success."
-                                    + " req={}, channel={}, reqId={}, elapseMs={}",
-                            req, finalChannel, response.getRequestId(), System.currentTimeMillis() - finalStart);
+                                    + "topic={}, req={}, channel={}, reqId={}, elapseMs={}",
+                            consumer.getTopic(), req, finalChannel, response.getRequestId(),
+                            System.currentTimeMillis() - finalStart);
                     return getResponseObject(response.getPayload());
                 });
     }
