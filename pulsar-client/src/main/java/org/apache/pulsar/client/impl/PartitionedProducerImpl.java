@@ -199,7 +199,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     @Override
-    void triggerFlush() {
+    public void triggerFlush() {
         producers.forEach(ProducerImpl::triggerFlush);
     }
 

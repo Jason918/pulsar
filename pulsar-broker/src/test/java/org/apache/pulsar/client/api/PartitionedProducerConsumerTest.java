@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.*;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
@@ -899,6 +900,28 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testBatchProducerWithManualTrigger() throws Exception {
+
+        final int numPartitions = 2;
+        final String topicName = "persistent://my-property/my-ns/my-topic-" + System.currentTimeMillis();
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .enableBatching(true)
+                .batchingMaxMessages(3)
+                .batchingMaxPublishDelay(0, TimeUnit.MILLISECONDS)
+                .create();
+        byte[] data = new byte[100];
+        CompletableFuture<MessageId> idF = producer.sendAsync(data);
+        CompletableFuture<MessageId> idF2 = producer.sendAsync(data);
+        producer.triggerFlush();
+        log.info("MSG1.id1={}", idF.get());
+        log.info("MSG1.id2={}", idF2.get());
+        assertEquals(((MessageIdImpl) idF.get()).getEntryId(), ((MessageIdImpl) idF2.get()).getEntryId());
+    }
 
     private static class AlwaysTwoMessageRouter implements MessageRouter {
         @Override

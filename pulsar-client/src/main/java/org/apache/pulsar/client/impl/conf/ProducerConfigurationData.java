@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -37,14 +41,6 @@ import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
-import lombok.Data;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Data
 @NoArgsConstructor
@@ -156,7 +152,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     public void setBatchingMaxPublishDelayMicros(long batchDelay, TimeUnit timeUnit) {
         long delayInMs = timeUnit.toMillis(batchDelay);
-        checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
+        checkArgument(delayInMs >= 0, "configured value for batch delay must be at least 0ms");
         this.batchingMaxPublishDelayMicros = timeUnit.toMicros(batchDelay);
     }
 
@@ -166,7 +162,11 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public long batchingPartitionSwitchFrequencyIntervalMicros() {
-        return this.batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros;
+        if (batchingMaxPublishDelayMicros == 0) {
+            return this.batchingPartitionSwitchFrequencyByPublishDelay * TimeUnit.MILLISECONDS.toMicros(1);
+        } else {
+            return this.batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros;
+        }
     }
 
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {

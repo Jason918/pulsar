@@ -128,8 +128,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    abstract void triggerFlush();
-
     @Override
     public void close() throws PulsarClientException {
         try {

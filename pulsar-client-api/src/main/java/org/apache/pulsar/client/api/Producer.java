@@ -96,6 +96,11 @@ public interface Producer<T> extends Closeable {
     CompletableFuture<Void> flushAsync();
 
     /**
+     * Trigger a flush()
+     */
+    void triggerFlush();
+
+    /**
      * Create a new message builder.
      *
      * <p>This message builder allows to specify additional properties on the message. For example:

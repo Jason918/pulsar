@@ -1435,7 +1435,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             this.msgIdGenerator = lastSequenceId + 1;
                         }
 
-                        if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
+                        if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()
+                                // triggerFlush() needs to be called manually if this 0.
+                                && conf.getBatchingMaxPublishDelayMicros() > 0) {
                             // schedule the first batch message task
                             batchTimerTask = cnx.ctx().executor()
                                     .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
@@ -1773,7 +1775,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    protected void triggerFlush() {
+    public void triggerFlush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
                 batchMessageAndSend();
