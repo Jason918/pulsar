@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -28,7 +27,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonParseException;
-
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -42,8 +40,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -80,49 +76,60 @@ public class CmdProduce {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions;
 
-    @Parameter(names = { "-m", "--messages" },
-               description = "Messages to send, either -m or -f must be specified. The default separator is comma",
-               splitter = NoSplitter.class)
+    @Parameter(names = {"-m", "--messages"},
+            description = "Messages to send, either -m or -f must be specified. The default separator is comma",
+            splitter = NoSplitter.class)
     private List<String> messages = Lists.newArrayList();
 
-    @Parameter(names = { "-f", "--files" },
-               description = "Comma separated file paths to send, either -m or -f must be specified.")
+    @Parameter(names = {"-f", "--files"},
+            description = "Comma separated file paths to send, either -m or -f must be specified.")
     private List<String> messageFileNames = Lists.newArrayList();
 
-    @Parameter(names = { "-n", "--num-produce" },
-               description = "Number of times to send message(s), the count of messages/files * num-produce " +
-                       "should below than " + MAX_MESSAGES + ".")
+    @Parameter(names = {"-n", "--num-produce"},
+            description = "Number of times to send message(s), the count of messages/files * num-produce " +
+                    "should below than " + MAX_MESSAGES + ".")
     private int numTimesProduce = 1;
 
-    @Parameter(names = { "-r", "--rate" },
-               description = "Rate (in msg/sec) at which to produce," +
-                       " value 0 means to produce messages as fast as possible.")
+    @Parameter(names = {"-r", "--rate"},
+            description = "Rate (in msg/sec) at which to produce," +
+                    " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
 
-    @Parameter(names = { "-db", "--disable-batching" }, description = "Disable batch sending of messages")
+    @Parameter(names = {"-db", "--disable-batching"}, description = "Disable batch sending of messages")
     private boolean disableBatching = false;
-    
-    @Parameter(names = { "-c",
-            "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
+
+    @Parameter(names = {"-bmm", "--bathing-max-messages"}, description = "Set batchingMaxMessages for Producer")
+    private Integer batchingMaxMessages = null;
+
+    @Parameter(names = {"-bmb", "--bathing-max-bytes"}, description = "Set batchingMaxBytes for Producer")
+    private Integer batchingMaxBytes = null;
+
+    @Parameter(names = {"-bmpd",
+            "--bathing-max-publish-delay"}, description = "Set batchingMaxPublishDelay (ms) for Producer")
+    private Long batchingMaxPublishDelay = null;
+
+    @Parameter(names = {"-c",
+            "--chunking"}, description = "Should split the message and publish in chunks if message size is larger "
+            + "than allowed max size")
     private boolean chunkingAllowed = false;
 
-    @Parameter(names = { "-s", "--separator" },
-               description = "Character to split messages string on default is comma")
+    @Parameter(names = {"-s", "--separator"},
+            description = "Character to split messages string on default is comma")
     private String separator = ",";
 
-    @Parameter(names = { "-p", "--properties"}, description = "Properties to add, Comma separated "
+    @Parameter(names = {"-p", "--properties"}, description = "Properties to add, Comma separated "
             + "key=value string, like k1=v1,k2=v2.")
     private List<String> properties = Lists.newArrayList();
 
-    @Parameter(names = { "-k", "--key"}, description = "message key to add ")
+    @Parameter(names = {"-k", "--key"}, description = "message key to add ")
     private String key;
 
-    @Parameter(names = { "-ekn", "--encryption-key-name" }, description = "The public key name to encrypt payload")
+    @Parameter(names = {"-ekn", "--encryption-key-name"}, description = "The public key name to encrypt payload")
     private String encKeyName = null;
 
-    @Parameter(names = { "-ekv",
-            "--encryption-key-value" }, description = "The URI of public key to encrypt payload, for example "
-                    + "file:///path/to/public.key or data:application/x-pem-file;base64,*****")
+    @Parameter(names = {"-ekv",
+            "--encryption-key-value"}, description = "The URI of public key to encrypt payload, for example "
+            + "file:///path/to/public.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue = null;
 
     private ClientBuilder clientBuilder;
@@ -185,7 +192,7 @@ public class CmdProduce {
             throw (new ParameterException("Number of times need to be positive number."));
         }
 
-        if (messages.size() > 0){
+        if (messages.size() > 0) {
             messages = Collections.unmodifiableList(Arrays.asList(messages.get(0).split(separator)));
         }
 
@@ -222,6 +229,16 @@ public class CmdProduce {
             } else if (this.disableBatching) {
                 producerBuilder.enableBatching(false);
             }
+            if (this.batchingMaxMessages != null) {
+                producerBuilder.batchingMaxMessages(this.batchingMaxMessages);
+            }
+            if (this.batchingMaxPublishDelay != null) {
+                producerBuilder.batchingMaxPublishDelay(this.batchingMaxPublishDelay, TimeUnit.MILLISECONDS);
+            }
+            if (this.batchingMaxBytes != null) {
+                producerBuilder.batchingMaxBytes(this.batchingMaxBytes);
+            }
+
             if (isNotBlank(this.encKeyName) && isNotBlank(this.encKeyValue)) {
                 producerBuilder.addEncryptionKey(this.encKeyName);
                 producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
@@ -233,7 +250,7 @@ public class CmdProduce {
 
             Map<String, String> kvMap = new HashMap<>();
             for (String property : properties) {
-                String [] kv = property.split("=");
+                String[] kv = property.split("=");
                 kvMap.put(kv[0], kv[1]);
             }
 
@@ -338,7 +355,7 @@ public class CmdProduce {
                     if (limiter != null) {
                         limiter.acquire();
                     }
-                    produceSocket.send(index++, content).get(30,TimeUnit.SECONDS);
+                    produceSocket.send(index++, content).get(30, TimeUnit.SECONDS);
                     numMessagesSent++;
                 }
             }
@@ -400,8 +417,8 @@ public class CmdProduce {
 
         @OnWebSocketMessage
         public synchronized void onMessage(String msg) throws JsonParseException {
-            LOG.info("ack= {}",msg);
-            if(this.result!=null) {
+            LOG.info("ack= {}", msg);
+            if (this.result != null) {
                 this.result.complete(null);
             }
         }
