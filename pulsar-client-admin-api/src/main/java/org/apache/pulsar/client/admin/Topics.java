@@ -4397,4 +4397,22 @@ public interface Topics {
      * @param sourceTopic source topic name
      */
     CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic);
+
+    String getShadowSource(String shadowTopic) throws PulsarAdminException;
+
+    CompletableFuture<String> getShadowSourceAsync(String shadowTopic);
+
+    void createShadowTopic(String shadowTopic, String sourceTopic, Map<String, String> properties)
+            throws PulsarAdminException;
+
+    CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic,
+                                                   Map<String, String> properties);
+
+    default void createShadowTopic(String shadowTopic, String sourceTopic) throws PulsarAdminException {
+        createShadowTopic(shadowTopic, sourceTopic, null);
+    }
+
+    default CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic) {
+        return createShadowTopicAsync(shadowTopic, sourceTopic, null);
+    }
 }
