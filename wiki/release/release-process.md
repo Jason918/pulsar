@@ -145,7 +145,7 @@ Inspect the artifacts:
 * Check that the `LICENSE` and `NOTICE` files cover all included jars for the -bin package)
     - Use script to cross-validate `LICENSE` file with included jars:
        ```
-       src/check-binary-license distribution/server/target/apache-pulsar-${RELEASE_VERSION}-bin.tar.gz
+       src/check-binary-license.sh distribution/server/target/apache-pulsar-${RELEASE_VERSION}-bin.tar.gz
        ```
 * Unpack src package: `target/apache-pulsar-${RELEASE_VERSION}-src.tar.gz`
     - Run Apache RAT to verify the license headers in the `src` package:
