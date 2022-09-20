@@ -63,8 +63,6 @@ export APACHE_USER="Your own apache account Id"
 export RELEASE_BRANCH="branch-2.10"
 export RELEASE_VERSION="2.10.2"
 export RELEASE_CANDIDATE="1"
-
-PULSAR_PATH="releaseing repo dir path."
 ```
 
 ## Create the release branch (Major release Only)
