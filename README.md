@@ -34,6 +34,8 @@ flexible messaging model and an intuitive client API.
 
 Learn more about Pulsar at https://pulsar.apache.org
 
+TRIGGERCI
+
 ## Main features
 
 - Horizontally scalable (Millions of independent topics and millions
