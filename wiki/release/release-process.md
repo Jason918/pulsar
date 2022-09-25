@@ -63,6 +63,7 @@ export APACHE_USER="Your own apache account Id"
 export RELEASE_BRANCH="branch-2.10"
 export RELEASE_VERSION="2.10.2"
 export RELEASE_CANDIDATE="1"
+export RELEASE_PULSAR_HOME="/path/to/release/directory"
 ```
 
 ## Create the release branch (Major release Only)
@@ -142,23 +143,26 @@ After the build, there will be 4 generated artifacts:
 * directory `distribution/io/target/apache-pulsar-io-connectors-${RELEASE_VERSION}-bin` contains all io connect nars
 
 Inspect the artifacts:
-* Check that the `LICENSE` and `NOTICE` files cover all included jars for the -bin package)
-    - Use script to cross-validate `LICENSE` file with included jars:
-       ```
-       src/check-binary-license.sh distribution/server/target/apache-pulsar-${RELEASE_VERSION}-bin.tar.gz
-       ```
-* Unpack src package: `target/apache-pulsar-${RELEASE_VERSION}-src.tar.gz`
-    - Run Apache RAT to verify the license headers in the `src` package:
-       ```shell
-       cd apache-pulsar-${RELEASE_VERSION}
-       mvn apache-rat:check
-       ```
-* Unpack bin package: `distribution/server/target/apache-pulsar-${RELEASE_VERSION}-bin.tar.gz`, Check that the standalone Pulsar service starts correctly:
- ```shell
- cd apache-pulsar-${RELEASE_VERSION}
- cp -r ../../../io/target/apache-pulsar-io-connectors-${RELEASE_VERSION}-bin connectors
- bin/pulsar standalone
- ```
+* Check that the `LICENSE` and `NOTICE` files cover all included jars for the -bin package:
+    ```shell
+    # Use script to cross-validate `LICENSE` file with included jars
+    src/check-binary-license.sh distribution/server/target/apache-pulsar-${RELEASE_VERSION}-bin.tar.gz
+    ```
+* Run Apache RAT to verify the license headers in the `src` package:
+    ```shell
+    # Unpack src package and run apache-rat check.
+    cd ${RELEASE_PULSAR_HOME}/target && tar xvf apache-pulsar-${RELEASE_VERSION}-src.tar.gz
+    cd apache-pulsar-${RELEASE_VERSION}-src
+    mvn apache-rat:check
+    ```
+* Check that the standalone Pulsar service starts correctly:
+    ```shell
+    # Unpack bin package and start standalone.
+    cd ${RELEASE_PULSAR_HOME}/distribution/server/target/ && tar xvf apache-pulsar-${RELEASE_VERSION}-bin.tar.gz
+    cd apache-pulsar-${RELEASE_VERSION}
+    cp -r ${RELEASE_PULSAR_HOME}/distribution/io/target/apache-pulsar-io-connectors-${RELEASE_VERSION}-bin connectors
+    bin/pulsar standalone
+    ```
 
 * Use instructions in [Release-Candidate-Validation](https://github.com/apache/pulsar/blob/master/wiki/release/release-candidate-validation.md) to do some sanity checks on the produced binary distributions.
 
