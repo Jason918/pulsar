@@ -124,7 +124,7 @@ git tag -u ${APACHE_USER}@apache.org ${RELEASE_TAG} -m "Release ${RELEASE_TAG}"
 git tag -v ${RELEASE_TAG}
 
 # Push both the branch and the tag to Github repo
-git push origin $RELEASE_BRANCH
+git push origin ${RELEASE_BRANCH}
 git push origin ${RELEASE_TAG}
 ```
 
