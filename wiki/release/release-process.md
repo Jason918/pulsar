@@ -207,7 +207,7 @@ cd pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}
 ${RELEASE_PULSAR_HOME}/src/stage-release.sh .
 
 svn add *
-svn ci -m "Staging artifacts and signature for Pulsar release ${RELEASE_VERSION}"
+svn ci --username=${APACHE_USER} -m "Staging artifacts and signature for Pulsar release ${RELEASE_VERSION}"
 ```
 
 ## Stage artifacts in maven
