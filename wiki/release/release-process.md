@@ -196,7 +196,7 @@ where `<key fingerprint>` should be replaced with the private key fingerprint fo
 
 ```shell
 # Make sure it is NOT in the $PULSAR_PATH
-svn co https://dist.apache.org/repos/dist/dev/pulsar pulsar-dist-dev
+svn co https://dist.apache.org/repos/dist/dev/pulsar pulsar-dist-dev --depth empty
 cd pulsar-dist-dev
 
 # '-candidate-1' needs to be incremented in case of multiple iteration in getting
@@ -204,7 +204,7 @@ cd pulsar-dist-dev
 svn mkdir pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}
 
 cd pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}
-$PULSAR_PATH/src/stage-release.sh .
+${RELEASE_PULSAR_HOME}/src/stage-release.sh .
 
 svn add *
 svn ci -m "Staging artifacts and signature for Pulsar release ${RELEASE_VERSION}"
