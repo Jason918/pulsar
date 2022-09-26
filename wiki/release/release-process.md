@@ -217,11 +217,11 @@ Upload the artifacts to ASF Nexus:
 ```shell
 
 # remove CPP client binaries (they would file the license/RAT check in "deploy")
-cd pulsar-client-cpp
+cd ${RELEASE_PULSAR_HOME}/pulsar-client-cpp
 git clean -xfd
 cd ..
 
-export APACHE_PASSWORD=$MY_PASSWORD
+export APACHE_PASSWORD=<MY_PASSWORD>
 
 # publish artifacts
 mvn deploy -DskipTests -Papache-release --settings src/settings.xml
@@ -252,7 +252,7 @@ https://repository.apache.org/content/repositories/orgapachepulsar-XYZ
 Run the following commands:
 
 ```shell
-cd $PULSAR_HOME/docker
+cd ${RELEASE_PULSAR_HOME}/docker
 ./build.sh
 DOCKER_USER=<your-username> DOCKER_PASSWORD=<your-password> DOCKER_ORG=<your-username> ./publish.sh
 ```
