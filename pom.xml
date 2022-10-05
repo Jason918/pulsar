@@ -160,7 +160,7 @@ flexible messaging model and an intuitive client API.</description>
     <opensearch.version>1.2.4</opensearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
-    <scala-library.version>2.13.6</scala-library.version>
+    <scala-library.version>2.13.9</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
     <debezium.postgresql.version>42.4.1</debezium.postgresql.version>
     <debezium.mysql.version>8.0.28</debezium.mysql.version>
