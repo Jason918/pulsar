@@ -231,11 +231,11 @@ mvn deploy -DskipTests -Papache-release --settings src/settings.xml -f tests/pom
 
 This will ask for the GPG key passphrase and then upload to the staging repository.
 
-> If you have deployed before, re-deploying might fail on pulsar-presto-connector-original.
->
+> TIP1: If you have deployed before, re-deploying might fail on pulsar-presto-connector-original.
 > See https://github.com/apache/pulsar/issues/17047.
->
 > You can run `mvn clean deploy` instead of `mvn deploy` as a workaround.
+> 
+> TIP2: If your local IP changed during deploy, you may add `-DstagingRepositoryId=orgapachepulsar-XYZ` in the options to upload artifacts to the same staging repository. The "XYZ" can be found with the following steps.
 
 Login to ASF Nexus repository at https://repository.apache.org
 
@@ -459,6 +459,10 @@ Send out a PR request for review.
 ## Write release notes
 
 See [Pulsar Release Notes Guide](https://docs.google.com/document/d/1cwNkBefKyV6OPbEXnUrcCdVZi0i2BezqL6vAL7VqVC0/edit#).
+
+And also update the release notes on github
+https://github.com/apache/pulsar/releases
+
 
 ## Update the site
 
