@@ -258,10 +258,10 @@ DOCKER_USER=<your-username> DOCKER_PASSWORD=<your-password> DOCKER_ORG=<your-use
 ```
 
 After that, the following images will be built and pushed to your own DockerHub account.
-- pulsar
+- pulsar 
 - pulsar-all
-- pulsar-grafana
-- pulsar-standalone
+- pulsar-grafana (not needed since 2.10)
+- pulsar-standalone (not needed since 2.9)
 
 
 ## Run the vote
