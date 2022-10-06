@@ -187,7 +187,7 @@ This will leave the RPM/YUM and DEB repo files in `pulsar-client-cpp/pkg/rpm/RPM
 The `src` and `bin` artifacts need to be signed and uploaded to the dist SVN
 repository for staging.
 
-Before running the script, make sure that the `user@apache.org` code signing key is the default gpg signing key.
+Before running the script, make sure that the `${APACHE_USER}@apache.org` code signing key is the default gpg signing key.
 One way to ensure this is to create/edit file `~/.gnupg/gpg.conf` and add a line
 ```
 default-key <key fingerprint>
@@ -199,8 +199,8 @@ where `<key fingerprint>` should be replaced with the private key fingerprint fo
 svn co https://dist.apache.org/repos/dist/dev/pulsar pulsar-dist-dev --depth empty
 cd pulsar-dist-dev
 
-# '-candidate-1' needs to be incremented in case of multiple iteration in getting
-#    to the final release)
+# $RELEASE_CANDIDATE needs to be incremented in case of multiple iteration in getting
+# to the final release)
 svn mkdir pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}
 
 cd pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}
@@ -256,6 +256,10 @@ cd ${RELEASE_PULSAR_HOME}/docker
 ./build.sh
 DOCKER_USER=<your-username> DOCKER_PASSWORD=<your-password> DOCKER_ORG=<your-username> ./publish.sh
 ```
+
+> **NOTE**: If you encounter errors like `The repository 'mirror://mirrors.ubuntu.com/mirrors.txt focal Release' does not have a Release file.` when running `build.sh`, you can specify ubuntu mirror address with env variable `UBUNTU_MIRROR` to other mirrors manually. Related PR https://github.com/apache/pulsar/pull/14095
+> 
+> Possible mirror list can be found in http://mirrors.ubuntu.com/mirrors.txt, and `http://mirrors.cn99.com/ubuntu/` works fine when building 2.10.2 using the network of Beijing Unicom.
 
 After that, the following images will be built and pushed to your own DockerHub account.
 - pulsar 
