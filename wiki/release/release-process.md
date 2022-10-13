@@ -132,6 +132,12 @@ git push origin ${RELEASE_TAG}
 ## Build and inspect the artifacts
 
 ```shell
+# Make sure the version of maven and JDK is right.
+mvn -v 
+
+# Clean up old cpp compile files.
+git clean -xfd pulsar-client-cpp
+
 mvn clean install -DskipTests
 ```
 
@@ -170,7 +176,6 @@ Inspect the artifacts:
 
 ```shell
 pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
-
 pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 ```
 
@@ -217,9 +222,7 @@ Upload the artifacts to ASF Nexus:
 ```shell
 
 # remove CPP client binaries (they would file the license/RAT check in "deploy")
-cd ${RELEASE_PULSAR_HOME}/pulsar-client-cpp
-git clean -xfd
-cd ..
+git clean -xfd ${RELEASE_PULSAR_HOME}/pulsar-client-cpp
 
 export APACHE_PASSWORD=<MY_PASSWORD>
 
