@@ -344,15 +344,20 @@ Create the final git tag:
 
 ```shell
 git tag -u ${APACHE_USER}@apache.org v${RELEASE_VERSION} -m "Release v${RELEASE_VERSION}"
+
+# check the tag details.
+git tag -v v${RELEASE_VERSION}
+
 git push origin v${RELEASE_VERSION}
 ```
 
 Promote the artifacts on the release location(repo https://dist.apache.org/repos/dist/release limited to PMC, You may need a PMC member's help if you are not one):
 ```shell
-RELEASE_VERSION="2.10.2" # Update this accordingly
-{RELEASE_CANDIDATE}="1" # Update this accordingly
-svn move -m "Release Apache Pulsar ${RELEASE_VERSION}" https://dist.apache.org/repos/dist/dev/pulsar/pulsar-${RELEASE_CANDIDATE}-candidate-${RELEASE_CANDIDATE} \
-         https://dist.apache.org/repos/dist/release/pulsar/pulsar-${RELEASE_CANDIDATE}
+# check the RELEASE_VERSION and RELEASE_CANDIDATE.
+echo "Promoting pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}"
+
+svn move -m "Release Apache Pulsar ${RELEASE_VERSION}" https://dist.apache.org/repos/dist/dev/pulsar/pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE} \
+         https://dist.apache.org/repos/dist/release/pulsar/pulsar-${RELEASE_VERSION}
 ```
 
 Promote the Maven staging repository for release. Login to `https://repository.apache.org` and
