@@ -407,7 +407,7 @@ done
 >
 > 3. Once you have completed the following steps in this section, you can check if the wheels are uploaded successfully in [Download files](https://pypi.org/project/pulsar-client/#files). Remember to switch to the correct version in [Release history](https://pypi.org/project/pulsar-client/#history)).
 
-### Linux
+1. Pulish wheels for Linux
 
 There is a script that builds and packages the Python client inside Docker images.
 
@@ -428,12 +428,12 @@ pip install twine
 twine upload pulsar_client-*.whl
 ```
 
-### MacOS
+2. Pulish wheels for MacOS
 
 There is a script that builds and packages the Python client inside Docker images.
 
 ```shell
-$ pulsar-client-cpp/python/build-mac-wheels.sh
+pulsar-client-cpp/python/build-mac-wheels.sh
 ```
 
 The wheel files will be generated at each platform directory under `pulsar-client-cpp/python/pkg/osx/`.
@@ -463,12 +463,15 @@ Release a new version of libpulsar for Homebrew, You can follow the example [her
 > while for minor release, swagger file is created from branch-2.x, and need copy to a new branch based on master.
 
 ```shell
-git checkout ${RELEASE_BRANCH}
+# Make sure you run following command at the release tag.
+git checkout "v${RELEASE_VERSION}"
 mvn -am -pl pulsar-broker install -DskipTests -Pswagger
+
 git checkout master
 git checkout -b fix/swagger-file
 mkdir -p site2/website/static/swagger/${RELEASE_VERSION}
 cp pulsar-broker/target/docs/*.json site2/website/static/swagger/${RELEASE_VERSION}
+
 ```
 Send out a PR request for review.
 
