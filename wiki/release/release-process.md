@@ -371,9 +371,10 @@ svn move -m "Release Apache Pulsar ${RELEASE_VERSION}" \
 
 Copy the approved candidate docker images from your personal account to apachepulsar org.
 If you don't have the permission, you can ask someone with access to apachepulsar org to do that.
+Note: we don't need pulsar-grafana since 2.10 and pulsar-standalone since 2.9.
 
 ```shell
-RELEASE_VERSION="2.x.x"
+RELEASE_VERSION=<2.x.x>
 RM_DOCKER_USER=<docker user name of the release manager>
 for image in pulsar pulsar-all pulsar-grafana pulsar-standalone; do
     docker pull "${RM_DOCKER_USER}/$image:${RELEASE_VERSION}" && {
@@ -410,10 +411,11 @@ done
 
 There is a script that builds and packages the Python client inside Docker images.
 
-> Make sure you run following command at the release tag!!
 
 ```shell
-$ pulsar-client-cpp/docker/build-wheels.sh
+# Make sure you run following command at the release tag!!
+git checkout "v${RELEASE_VERSION}"
+pulsar-client-cpp/docker/build-wheels.sh
 ```
 
 The wheel files will be left under `pulsar-client-cpp/python/wheelhouse`. Make sure all the files has `manylinux` in the filenames. Otherwise those files will not be able to upload to PyPI.
@@ -421,9 +423,9 @@ The wheel files will be left under `pulsar-client-cpp/python/wheelhouse`. Make s
 Run following command to push the built wheel files.
 
 ```shell
-$ cd pulsar-client-cpp/python/wheelhouse
-$ pip install twine
-$ twine upload pulsar_client-*.whl
+cd pulsar-client-cpp/python/wheelhouse
+pip install twine
+twine upload pulsar_client-*.whl
 ```
 
 ### MacOS
