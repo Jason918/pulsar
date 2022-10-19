@@ -340,8 +340,7 @@ and create a Pull Request on GitHub.
 
 ## Promote the release
 
-Create the final git tag:
-
+1. Create the final git tag:
 ```shell
 git tag -u ${APACHE_USER}@apache.org v${RELEASE_VERSION} -m "Release v${RELEASE_VERSION}"
 
@@ -351,19 +350,22 @@ git tag -v v${RELEASE_VERSION}
 git push origin v${RELEASE_VERSION}
 ```
 
-Promote the artifacts on the release location(repo https://dist.apache.org/repos/dist/release limited to PMC, You may need a PMC member's help if you are not one):
+2. Promote the artifacts on the release location.
+Repo https://dist.apache.org/repos/dist/release limited to PMC, You may need a PMC member's help if you are not one.
 ```shell
 # check the RELEASE_VERSION and RELEASE_CANDIDATE.
 echo "Promoting pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}"
 
-svn move -m "Release Apache Pulsar ${RELEASE_VERSION}" https://dist.apache.org/repos/dist/dev/pulsar/pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE} \
-         https://dist.apache.org/repos/dist/release/pulsar/pulsar-${RELEASE_VERSION}
+svn move -m "Release Apache Pulsar ${RELEASE_VERSION}" \
+    "https://dist.apache.org/repos/dist/dev/pulsar/pulsar-${RELEASE_VERSION}-candidate-${RELEASE_CANDIDATE}" \
+    "https://dist.apache.org/repos/dist/release/pulsar/pulsar-${RELEASE_VERSION}"
 ```
 
-Promote the Maven staging repository for release. Login to `https://repository.apache.org` and
-select the staging repository associated with the RC candidate that was approved. The naming
-will be like `orgapachepulsar-XYZ`. Select the repository and click on "Release". Artifacts
-will now be made available on Maven central.
+3. Promote the Maven staging repository for release. 
+- Login to https://repository.apache.org.
+- Select the staging repository associated with the RC candidate that was approved. The naming will be like `orgapachepulsar-XYZ`. 
+- Select the repository and click on "Release". Artifacts will now be made available on Maven central.
+- Please remove old repositories associated with previous release condidate.
 
 ## Publish Docker Images
 
