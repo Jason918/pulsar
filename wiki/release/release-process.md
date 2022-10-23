@@ -436,7 +436,7 @@ There is a script that builds and packages the Python client inside Docker image
 pulsar-client-cpp/python/build-mac-wheels.sh
 ```
 
-The wheel files will be generated at each platform directory under `pulsar-client-cpp/python/pkg/osx/`.
+The wheel files will be generated at each platform directory under `pulsar-client-cpp/python/dist`.
 Then you can run `twin upload` to upload those wheel files.
 
 ## Update Python Client docs
